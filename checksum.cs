@@ -1,16 +1,23 @@
-﻿using System;
+﻿//////////////////////////////////////////////////////////////////////
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+//////////////////////////////////////////////////////////////////////
+
 namespace modbus
 {
+    //////////////////////////////////////////////////////////////////////
+
     public static class checksum
     {
         //////////////////////////////////////////////////////////////////////
+        // get the crc of a message
 
-        public static ushort get(byte[] message, int length)
+        public static ushort compute(byte[] message, int length)
         {
             ushort crc = 0xffff;
             for (int i = 0; i < length; ++i)
@@ -30,13 +37,36 @@ namespace modbus
         }
 
         //////////////////////////////////////////////////////////////////////
+        // overwrite the last 2 bytes with the crc
 
-        public static void set(byte[] message)
+        public static void set(byte[] message, int length)
         {
-            int l = message.Length;
-            ushort crc = get(message, l - 2);
-            message[l - 1] = (byte)(crc & 0xff);
-            message[l - 2] = (byte)(crc >> 8);
+            checksum.insert(message, length, checksum.compute(message, length - 2));
+        }
+
+        //////////////////////////////////////////////////////////////////////
+        // insert a checksum into the last 2 bytes
+
+        public static void insert(byte[] message, int length, ushort crc)
+        {
+            message[length - 1] = (byte)(crc & 0xff);
+            message[length - 2] = (byte)(crc >> 8);
+        }
+
+        //////////////////////////////////////////////////////////////////////
+        // get the last 2 bytes as a ushort crc
+
+        public static ushort extract(byte[] message, int length)
+        {
+            return (ushort)((message[length - 1] & 0xff) | (message[length - 2] << 8));
+        }
+
+        //////////////////////////////////////////////////////////////////////
+        // compare existing crc with computed crc
+
+        public static bool verify(byte[] message, int length)
+        {
+            return checksum.extract(message, length) == checksum.compute(message, length);
         }
 
     }

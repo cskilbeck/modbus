@@ -17,28 +17,9 @@ namespace modbus
     {
         //////////////////////////////////////////////////////////////////////
 
-        enum mode
+        static bool verify_checksum(byte[] message)
         {
-            constant_current = 0,
-            constant_voltage = 1,
-            constant_resistance = 2,
-            constant_watts = 3
-        };
-
-        //////////////////////////////////////////////////////////////////////
-
-        enum load_switch
-        {
-            on,
-            off
-        };
-
-        //////////////////////////////////////////////////////////////////////
-
-        static bool validate_checksum(byte[] message)
-        {
-            int l = message.Length;
-            return checksum.get(message, l - 2) == (ushort)((message[l - 1] & 0xff) | (message[l - 2] << 8));
+            return checksum.verify(message, message.Length);
         }
 
         //////////////////////////////////////////////////////////////////////
@@ -46,7 +27,7 @@ namespace modbus
         static void set_load_switch(load_switch s)
         {
             byte[] message = { 0x01, 0x06, 0x01, 0x0E, 0x00, 0x01, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-            if(s == load_switch.on)
+            if (s == load_switch.on)
             {
                 message[10] = 1;
             }
@@ -80,8 +61,8 @@ namespace modbus
         static void Main(string[] args)
         {
             byte[] message = { 0x01, 0x06, 0x01, 0x16, 0x00, 0x01, 0x04, 0x00, 0x00, 0x07, 0xD0, 0x00, 0x00 };
-            checksum.set(message);
-            bool x = validate_checksum(message);
+            checksum.set(message, message.Length);
+            bool x = verify_checksum(message);
         }
     }
 }
