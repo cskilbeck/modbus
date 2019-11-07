@@ -1,6 +1,7 @@
 ﻿//////////////////////////////////////////////////////////////////////
 
 using Microsoft.Extensions.CommandLineUtils;
+using System;
 using System.Threading;
 
 //////////////////////////////////////////////////////////////////////
@@ -13,7 +14,7 @@ namespace modbus
     {
         static void Main(string[] args)
         {
-            var app = new CommandLineApplication(false)
+            CommandLineApplication app = new CommandLineApplication(false)
             {
                 Name = "KP184",
                 Description = "Control the KP184"
@@ -21,8 +22,8 @@ namespace modbus
 
             app.HelpOption("--help");
 
-            CommandOption com_port = app.Option("-p|--com", "Select com port", CommandOptionType.SingleValue);
-            var address = app.Option("-a|--address", "Select device address", CommandOptionType.SingleValue);
+            CommandOption com_port = app.Option("-p|--com", "com port (string)", CommandOptionType.SingleValue);
+            CommandOption address = app.Option("-a|--address", "device address (byte)", CommandOptionType.SingleValue);
 
             app.OnExecute(() =>
             {
@@ -55,7 +56,14 @@ namespace modbus
                 return 0;
             });
 
-            app.Execute(args);
+            try
+            {
+                app.Execute(args);
+            }
+            catch (CommandParsingException e)
+            {
+                Console.Error.WriteLine($"{e.Message}");
+            }
         }
     }
 }
