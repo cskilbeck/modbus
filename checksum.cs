@@ -37,15 +37,7 @@ namespace modbus
         }
 
         //////////////////////////////////////////////////////////////////////
-        // overwrite the last 2 bytes with the crc
-
-        public static void set(byte[] message, int length)
-        {
-            checksum.insert(message, length, checksum.compute(message, length - 2));
-        }
-
-        //////////////////////////////////////////////////////////////////////
-        // insert a checksum into the last 2 bytes
+        // insert a ushort into the last 2 bytes
 
         public static void insert(byte[] message, int length, ushort crc)
         {
@@ -54,11 +46,19 @@ namespace modbus
         }
 
         //////////////////////////////////////////////////////////////////////
-        // get the last 2 bytes as a ushort crc
+        // get the last 2 bytes as a ushort
 
         public static ushort extract(byte[] message, int length)
         {
             return (ushort)((message[length - 1] & 0xff) | (message[length - 2] << 8));
+        }
+
+        //////////////////////////////////////////////////////////////////////
+        // overwrite the last 2 bytes with the crc
+
+        public static void set(byte[] message, int length)
+        {
+            checksum.insert(message, length, checksum.compute(message, length - 2));
         }
 
         //////////////////////////////////////////////////////////////////////

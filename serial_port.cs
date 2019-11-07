@@ -17,30 +17,31 @@ namespace modbus
     {
         //////////////////////////////////////////////////////////////////////
 
-        public SerialPort sp = new SerialPort();
+        public SerialPort port = new SerialPort();
 
         //////////////////////////////////////////////////////////////////////
 
-        public bool open(string portName, int baudRate, int databits, Parity parity, StopBits stopBits)
+        public bool open(string portName, int baudRate, int databits = 8, Parity parity = Parity.None, StopBits stopBits = StopBits.One)
         {
             close();
 
-            if (!sp.IsOpen)
+            if (!port.IsOpen)
             {
-                sp.PortName = portName;
-                sp.BaudRate = baudRate;
-                sp.DataBits = databits;
-                sp.Parity = parity;
-                sp.StopBits = stopBits;
-                sp.ReadTimeout = 1000;
-                sp.WriteTimeout = 1000;
+                port.PortName = portName;
+                port.BaudRate = baudRate;
+                port.DataBits = databits;
+                port.Parity = parity;
+                port.StopBits = stopBits;
+                port.ReadTimeout = 100;
+                port.WriteTimeout = 100;
                 try
                 {
-                    sp.Open();
+                    port.Open();
                     return true;
                 }
-                catch (System.IO.IOException)
+                catch (System.IO.IOException e)
                 {
+                    Console.Error.WriteLine($"{e.Message}");
                 }
             }
             return false;
@@ -50,34 +51,40 @@ namespace modbus
 
         public void flush()
         {
-            sp.DiscardInBuffer();
-            sp.DiscardOutBuffer();
+            port.DiscardInBuffer();
+            port.DiscardOutBuffer();
         }
 
         //////////////////////////////////////////////////////////////////////
 
         public void close()
         {
-            if (sp.IsOpen)
+            if (port.IsOpen)
             {
-                sp.Close();
+                port.Close();
             }
         }
 
         //////////////////////////////////////////////////////////////////////
 
-        public bool write(byte[] message)
+        public bool write(byte[] message, int len)
         {
             try
             {
-                sp.Write(message, 0, message.Length);
+                port.Write(message, 0, len);
                 return true;
             }
-            catch (InvalidOperationException)
+            catch (System.IO.IOException e)
             {
+                Console.Error.WriteLine($"Error {e.Message}");
             }
-            catch (TimeoutException)
+            catch (InvalidOperationException e)
             {
+                Console.Error.WriteLine($"Error {e.Message}");
+            }
+            catch (TimeoutException e)
+            {
+                Console.Error.WriteLine($"Error {e.Message}");
             }
             return false;
         }
@@ -88,14 +95,20 @@ namespace modbus
         {
             try
             {
-                sp.Read(buffer, 0, len);
+                port.Read(buffer, 0, len);
                 return true;
             }
-            catch (InvalidOperationException)
+            catch (System.IO.IOException e)
             {
+                Console.Error.WriteLine($"Error {e.Message}");
             }
-            catch (TimeoutException)
+            catch (InvalidOperationException e)
             {
+                Console.Error.WriteLine($"Error {e.Message}");
+            }
+            catch (TimeoutException e)
+            {
+                Console.Error.WriteLine($"Error {e.Message}");
             }
             return false;
         }

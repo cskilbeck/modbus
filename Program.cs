@@ -1,11 +1,7 @@
 ﻿//////////////////////////////////////////////////////////////////////
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.IO.Ports;
+using Microsoft.Extensions.CommandLineUtils;
+using System.Threading;
 
 //////////////////////////////////////////////////////////////////////
 
@@ -15,54 +11,51 @@ namespace modbus
 
     class Program
     {
-        //////////////////////////////////////////////////////////////////////
-
-        static bool verify_checksum(byte[] message)
-        {
-            return checksum.verify(message, message.Length);
-        }
-
-        //////////////////////////////////////////////////////////////////////
-
-        static void set_load_switch(load_switch s)
-        {
-            byte[] message = { 0x01, 0x06, 0x01, 0x0E, 0x00, 0x01, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
-            if (s == load_switch.on)
-            {
-                message[10] = 1;
-            }
-        }
-
-        //////////////////////////////////////////////////////////////////////
-
-        static void set_mode(mode m)
-        {
-            int mode = (int)m;
-            byte[] message = { 0x01, 0x06, 0x01, 0x10, 0x00, 0x01, 0x04, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00 };
-            message[7] = (byte)(mode >> 24);
-            message[8] = (byte)(mode >> 16);
-            message[9] = (byte)(mode >> 8);
-            message[10] = (byte)(mode >> 0);
-        }
-
-        //////////////////////////////////////////////////////////////////////
-
-        static bool get_status(out int volts, out int amps)
-        {
-            byte[] message = { 0x01, 0x03, 0x03, 0x00, 0x00, 0x00, 0x8E, 0x45 };
-
-            volts = 0;
-            amps = 0;
-            return true;
-        }
-
-        //////////////////////////////////////////////////////////////////////
-
         static void Main(string[] args)
         {
-            byte[] message = { 0x01, 0x06, 0x01, 0x16, 0x00, 0x01, 0x04, 0x00, 0x00, 0x07, 0xD0, 0x00, 0x00 };
-            checksum.set(message, message.Length);
-            bool x = verify_checksum(message);
+            var app = new CommandLineApplication(false)
+            {
+                Name = "KP184",
+                Description = "Control the KP184"
+            };
+
+            app.HelpOption("--help");
+
+            CommandOption com_port = app.Option("-p|--com", "Select com port", CommandOptionType.SingleValue);
+            var address = app.Option("-a|--address", "Select device address", CommandOptionType.SingleValue);
+
+            app.OnExecute(() =>
+            {
+                if (!(com_port.HasValue() && address.HasValue()))
+                {
+                    app.ShowHelp();
+                    return 0;
+                }
+                byte device_address;
+                if (!byte.TryParse(address.Value(), out device_address))
+                {
+                    app.ShowHelp();
+                    return 0;
+                }
+                kp184 device = new kp184();
+                if (!device.open(com_port.Value(), 9600))
+                {
+                    return 0;
+                }
+                device.address = device_address;
+                device.set_mode(kp184.load_mode.constant_current);
+                device.set_load_switch(kp184.load_switch.on);
+                for (uint i = 0; i < 3000; i += 100)
+                {
+                    device.set_current(i);
+                    Thread.Sleep(1000);
+                }
+                device.set_load_switch(kp184.load_switch.off);
+                device.close();
+                return 0;
+            });
+
+            app.Execute(args);
         }
     }
 }
