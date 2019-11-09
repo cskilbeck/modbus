@@ -15,6 +15,20 @@ namespace modbus
     public static class checksum
     {
         //////////////////////////////////////////////////////////////////////
+
+        public static void dump_array(string header, byte[] message, int length)
+        {
+            Console.Error.Write(header);
+            string sep = "";
+            for (int i = 0; i < length; ++i)
+            {
+                Console.Error.Write($"{sep}{message[i]:X2}");
+                sep = ",";
+            }
+            Console.Error.WriteLine();
+        }
+
+        //////////////////////////////////////////////////////////////////////
         // get the crc of a message
 
         public static ushort compute(byte[] message, int length)
@@ -66,7 +80,15 @@ namespace modbus
 
         public static bool verify(byte[] message, int length)
         {
-            return checksum.extract(message, length) == checksum.compute(message, length);
+            ushort crc_got = checksum.extract(message, length);
+            ushort crc_computed = checksum.compute(message, length);
+            if(crc_computed != crc_got)
+            {
+                Console.Error.WriteLine($"Checksum error, got 0x{crc_got:X4}. expected 0x{crc_computed:X4}");
+                dump_array("Message: ", message, length);
+                return false;
+            }
+            return true;
         }
 
     }

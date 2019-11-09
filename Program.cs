@@ -39,19 +39,21 @@ namespace modbus
                     return 0;
                 }
                 kp184 device = new kp184();
-                if (!device.open(com_port.Value(), 9600))
+                if (!device.open(com_port.Value(), 115200))
                 {
                     return 0;
                 }
                 device.address = device_address;
-                device.set_mode(kp184.load_mode.constant_current);
-                device.set_load_switch(kp184.load_switch.on);
-                for (uint i = 0; i < 3000; i += 100)
-                {
-                    device.set_current(i);
-                    Thread.Sleep(1000);
-                }
-                device.set_load_switch(kp184.load_switch.off);
+                device.flush();
+                device.get_status();
+                //device.set_mode(kp184.load_mode.constant_current);
+                //device.set_load_switch(kp184.load_switch.on);
+                //for (uint i = 0; i < 3000; i += 100)
+                //{
+                //    device.set_current(i);
+                //    Thread.Sleep(1000);
+                //}
+                //device.set_load_switch(kp184.load_switch.off);
                 device.close();
                 return 0;
             });

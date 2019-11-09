@@ -32,8 +32,8 @@ namespace modbus
                 port.DataBits = databits;
                 port.Parity = parity;
                 port.StopBits = stopBits;
-                port.ReadTimeout = 100;
-                port.WriteTimeout = 100;
+                port.ReadTimeout = 1000;
+                port.WriteTimeout = 1000;
                 try
                 {
                     port.Open();
@@ -41,7 +41,7 @@ namespace modbus
                 }
                 catch (System.IO.IOException e)
                 {
-                    Console.Error.WriteLine($"{e.Message}");
+                    Console.Error.WriteLine($"Error opening {port.PortName} : {e.GetType()} - {e.Message}");
                 }
             }
             return false;
@@ -76,15 +76,15 @@ namespace modbus
             }
             catch (System.IO.IOException e)
             {
-                Console.Error.WriteLine($"Error {e.Message}");
+                Console.Error.WriteLine($"Error writing to {port.PortName} : {e.GetType()} - {e.Message}");
             }
             catch (InvalidOperationException e)
             {
-                Console.Error.WriteLine($"Error {e.Message}");
+                Console.Error.WriteLine($"Error writing to {port.PortName} : {e.GetType()} - {e.Message}");
             }
             catch (TimeoutException e)
             {
-                Console.Error.WriteLine($"Error {e.Message}");
+                Console.Error.WriteLine($"Error writing to {port.PortName} : {e.GetType()} - {e.Message}");
             }
             return false;
         }
@@ -100,15 +100,15 @@ namespace modbus
             }
             catch (System.IO.IOException e)
             {
-                Console.Error.WriteLine($"Error {e.Message}");
+                Console.Error.WriteLine($"Error reading from {port.PortName} : {e.GetType()} - {e.Message}");
             }
             catch (InvalidOperationException e)
             {
-                Console.Error.WriteLine($"Error {e.Message}");
+                Console.Error.WriteLine($"Error reading from {port.PortName} : {e.GetType()} - {e.Message}");
             }
             catch (TimeoutException e)
             {
-                Console.Error.WriteLine($"Error {e.Message}");
+                Console.Error.WriteLine($"Error reading from {port.PortName} : {e.GetType()} - {e.Message}");
             }
             return false;
         }
