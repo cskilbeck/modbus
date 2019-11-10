@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.IO.Ports;
+using System.Threading;
 
 //////////////////////////////////////////////////////////////////////
 
@@ -145,6 +146,7 @@ namespace modbus
             {
                 return false;
             }
+            Thread.Sleep(100);
             byte[] response = get_response(23);
             if (response == null)
             {
