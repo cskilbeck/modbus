@@ -119,7 +119,7 @@ namespace modbus
                     if((from < to && step < 0) || (from > to && step > 0))
                     {
                         step = -step;
-                        Console.WriteLine($"Changing stop to {step} from {-step} so it works");
+                        Console.WriteLine($"Changing step to {step} from {-step} so it works");
                     }
                     Console.WriteLine($"Stepping from {from} to {to} in steps of {step}mA at intervals of {interval}ms");
                     int current = from;
