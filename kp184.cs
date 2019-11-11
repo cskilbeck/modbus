@@ -63,6 +63,15 @@ namespace modbus
         };
 
         //////////////////////////////////////////////////////////////////////
+
+        private const int reply_delay = 100;
+
+        private static void delay()
+        {
+            Thread.Sleep(reply_delay);
+        }
+
+        //////////////////////////////////////////////////////////////////////
         // assumes the message body is already set up
 
         private void init_message(command type, ushort start, ushort registers, ref byte[] message)
@@ -108,11 +117,11 @@ namespace modbus
                 message[i++] = (byte)values[i];
             }
             init_message(command.write_multiple, start_register, num_registers, ref message);
-            flush();
             if (!write(message, message.Length))
             {
                 return false;
             }
+            delay();
             return get_response(8) != null;
         }
 
@@ -125,11 +134,11 @@ namespace modbus
             message[7] = (byte)(value >> 8);
             message[8] = (byte)(value & 0xff);
             init_message(command.write_single, register, 1, ref message);
-            flush();
             if (!write(message, message.Length))
             {
                 return false;
             }
+            delay();
             return get_response(13) != null;
         }
 
@@ -146,7 +155,7 @@ namespace modbus
             {
                 return false;
             }
-            Thread.Sleep(100);
+            delay();
             byte[] response = get_response(23);
             if (response == null)
             {
