@@ -24,8 +24,8 @@ namespace modbus
 
         public enum load_mode
         {
-            constant_current = 0,
-            constant_voltage = 1,
+            constant_voltage = 0,
+            constant_current = 1,
             constant_resistance = 2,
             constant_watts = 3
         };
@@ -55,7 +55,7 @@ namespace modbus
             load_switch = 0x010e,
             load_mode = 0x0110,
             volts = 0x0112,
-            current = 0x0113,
+            current = 0x0116,
             resistance = 0x011a,
             watts = 0x011e,
             measured_volts = 0x0122,
@@ -104,17 +104,20 @@ namespace modbus
 
         //////////////////////////////////////////////////////////////////////
         // write multiple registers to modbus
+        // this is untested and probably doesn't work, there's no example in the manual
 
-        public bool write_multiple(ushort start_register, ushort num_registers, short[] values)
+        public bool write_multiple(ushort start_register, ushort num_registers, uint[] values)
         {
-            byte[] message = new byte[9 + 2 * num_registers];
-            message[6] = (byte)(num_registers * 2);
+            byte[] message = new byte[9 + 4 * num_registers];
+            message[6] = (byte)(num_registers * 4);
             int rstart = 7;
-            int rend = 7 + num_registers * 2;
+            int rend = 7 + num_registers * 4;
             for (int i = rstart; i < rend;)
             {
+                message[i++] = (byte)(values[i] >> 24);
+                message[i++] = (byte)(values[i] >> 16);
                 message[i++] = (byte)(values[i] >> 8);
-                message[i++] = (byte)values[i];
+                message[i++] = (byte)(values[i] >> 0);
             }
             init_message(command.write_multiple, start_register, num_registers, ref message);
             if (!write(message, message.Length))
@@ -130,16 +133,19 @@ namespace modbus
 
         public bool write_register(ushort register, uint value)
         {
-            byte[] message = new byte[9 + 2];
-            message[7] = (byte)(value >> 8);
-            message[8] = (byte)(value & 0xff);
+            byte[] message = new byte[11 + 2];
+            message[6] = sizeof(uint); //4
+            message[7] = (byte)(value >> 24);
+            message[8] = (byte)(value >> 16);
+            message[9] = (byte)(value >> 8);
+            message[10] = (byte)(value >> 0);
             init_message(command.write_single, register, 1, ref message);
             if (!write(message, message.Length))
             {
                 return false;
             }
             delay();
-            return get_response(13) != null;
+            return get_response(9) != null;
         }
 
         //////////////////////////////////////////////////////////////////////
@@ -165,25 +171,33 @@ namespace modbus
             switch_mode = (load_mode)((response[3] >> 1) & 3);
             voltage = ((uint)response[5] << 16) | ((uint)response[6] << 8) | response[7];
             current = ((uint)response[8] << 16) | ((uint)response[9] << 8) | response[10];
+            Console.WriteLine("Status:");
+            Console.WriteLine($"   Switch is {switch_status}");
+            Console.WriteLine($"   Mode is {switch_mode}");
+            Console.WriteLine($"   Current is {current}");
+            Console.WriteLine($"   Voltage is {voltage}");
             return true;
         }
 
         //////////////////////////////////////////////////////////////////////
         // helpers
 
-        public void set_current(uint milliamps)
+        public bool set_current(uint milliamps)
         {
-            write_register((ushort)register.current, milliamps);
+            Console.WriteLine($"Set current to {milliamps}mA");
+            return write_register((ushort)register.current, milliamps);
         }
 
-        public void set_mode(load_mode mode)
+        public bool set_mode(load_mode mode)
         {
-            write_register((ushort)register.load_mode, (uint)mode);
+            Console.WriteLine($"Set mode to {mode}");
+            return write_register((ushort)register.load_mode, (uint)mode);
         }
 
-        public void set_load_switch(load_switch on_or_off)
+        public bool set_load_switch(load_switch on_or_off)
         {
-            write_register((ushort)register.load_switch, (uint)on_or_off);
+            Console.WriteLine($"Set switch {on_or_off}");
+            return write_register((ushort)register.load_switch, (uint)on_or_off);
         }
     }
 }

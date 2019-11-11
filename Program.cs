@@ -22,49 +22,113 @@ namespace modbus
 
             app.HelpOption("--help");
 
-            CommandOption com_port = app.Option("-p|--com", "com port (string)", CommandOptionType.SingleValue);
-            CommandOption address = app.Option("-a|--address", "device address (byte)", CommandOptionType.SingleValue);
-            CommandOption baud_rate = app.Option("-b|--baud", "baud rate", CommandOptionType.SingleValue);
+            CommandOption com_port_option = app.Option("-p|--com", "com port (string)", CommandOptionType.SingleValue);
+            CommandOption address_option = app.Option("-a|--address", "device address (byte)", CommandOptionType.SingleValue);
+            CommandOption baud_rate_option = app.Option("-b|--baud", "baud rate", CommandOptionType.SingleValue);
+            CommandOption from_option = app.Option("-f|--from", "starting current (mA)", CommandOptionType.SingleValue);
+            CommandOption to_option = app.Option("-t|--to", "ending current (mA)", CommandOptionType.SingleValue);
+            CommandOption interval_option = app.Option("-i|--interval", "interval time(ms)", CommandOptionType.SingleValue);
+            CommandOption step_option = app.Option("-s|--step", "step amount (mA)", CommandOptionType.SingleValue);
 
             app.OnExecute(() =>
             {
-                if (!(com_port.HasValue() && address.HasValue() && baud_rate.HasValue()))
+                if (!(com_port_option.HasValue() && address_option.HasValue() && baud_rate_option.HasValue()))
                 {
                     app.ShowHelp();
                     return 0;
                 }
-                byte device_address;
-                if (!byte.TryParse(address.Value(), out device_address))
+                byte address;
+                if (!byte.TryParse(address_option.Value(), out address))
                 {
-                    Console.Error.WriteLine($"Invalid device address: {address.Value()}");
+                    Console.Error.WriteLine($"Invalid device address: {address_option.Value()}");
                     app.ShowHelp();
                     return 0;
                 }
-                int actual_baud_rate;
-                if(!int.TryParse(baud_rate.Value(), out actual_baud_rate))
+                int baud_rate;
+                if(!int.TryParse(baud_rate_option.Value(), out baud_rate))
                 {
-                    Console.Error.WriteLine($"Invalid baud rate: {baud_rate.Value()}");
+                    Console.Error.WriteLine($"Invalid baud rate: {baud_rate_option.Value()}");
                     app.ShowHelp();
                     return 0;
+                }
+                // if from, to, interval, step are specified, do that, otherwise just show status
+                int from = 0;
+                int to = 0;
+                int interval = 0;
+                int step = 0;
+                bool ramp = from_option.HasValue() && to_option.HasValue() && interval_option.HasValue() && step_option.HasValue();
+                if(!ramp)
+                {
+                    if (from_option.HasValue() || to_option.HasValue() || interval_option.HasValue() || step_option.HasValue())
+                    {
+                        Console.Error.WriteLine("Must specify all or none of --from, --to, --interval, --step options");
+                        return 0;
+                    }
+                }
+                else
+                {
+                    bool ok = true;
+                    if (!int.TryParse(from_option.Value(), out from) || from < 0 || from > 40000)
+                    {
+                        Console.Error.WriteLine($"Bad value for 'from' option, must be 0 .. 40000 (mA)");
+                        ok = false;
+                    }
+                    if (!int.TryParse(to_option.Value(), out to) || to < 0 || to > 40000)
+                    {
+                        Console.Error.WriteLine($"Bad value for 'to' option, must be 0 .. 40000 (mA)");
+                        ok = false;
+                    }
+                    if (!int.TryParse(interval_option.Value(), out interval) || interval < 0 || interval > 360000)
+                    {
+                        Console.Error.WriteLine($"Bad value for 'interval' option, must be 0 .. 360000 (ms)");
+                        ok = false;
+                    }
+                    if (!int.TryParse(step_option.Value(), out step) || step < 0 || step > 10000)
+                    {
+                        Console.Error.WriteLine($"Bad value for 'step' option, must be 0 .. 10000 (mA)");
+                        ok = false;
+                    }
+                    if (from == to)
+                    {
+                        Console.Error.WriteLine($"Can't step from {from} to {to}");
+                        ok = false;
+                    }
+                    if(step == 0)
+                    {
+                        Console.Error.WriteLine($"Can't step 0, it will never get there");
+                        ok = false;
+                    }
+                    if(!ok)
+                    {
+                        return 0;
+                    }
                 }
                 kp184 device = new kp184();
-                if (!device.open(com_port.Value(), actual_baud_rate))
+                if (!device.open(com_port_option.Value(), baud_rate))
                 {
                     return 0;
                 }
-                Console.WriteLine($"COM Port: {com_port.Value()}");
-                Console.WriteLine($"BAUD Rate: {actual_baud_rate}");
-                Console.WriteLine($"Address: {device_address}");
-                device.address = device_address;
+                Console.WriteLine($"COM Port: {com_port_option.Value()}");
+                Console.WriteLine($"BAUD Rate: {baud_rate}");
+                Console.WriteLine($"Address: {address}");
+                device.address = address;
                 device.get_status();
-                //device.set_mode(kp184.load_mode.constant_current);
-                //device.set_load_switch(kp184.load_switch.on);
-                //for (uint i = 0; i < 3000; i += 100)
-                //{
-                //    device.set_current(i);
-                //    Thread.Sleep(1000);
-                //}
-                //device.set_load_switch(kp184.load_switch.off);
+                if(ramp)
+                {
+                    if((from < to && step > 0) || (from > to && step > 0))
+                    {
+                        Console.WriteLine($"Stepping {-step} instead of {step} so it works");
+                        step = -step;
+                    }
+                    Console.WriteLine($"Stepping from {from} to {to} in steps of {step}mA at intervals of {interval}ms");
+                    int current = from;
+                    while ((current < to) != ((current + step) > to))
+                    {
+                        device.set_current((uint)current);
+                        current += step;
+                        Thread.Sleep(interval);
+                    }
+                }
                 device.close();
                 return 0;
             });

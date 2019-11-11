@@ -81,7 +81,7 @@ namespace modbus
         public static bool verify(byte[] message, int length)
         {
             ushort crc_got = checksum.extract(message, length);
-            ushort crc_computed = checksum.compute(message, length);
+            ushort crc_computed = checksum.compute(message, length - 2);
             if(crc_computed != crc_got)
             {
                 Console.Error.WriteLine($"Checksum error, got 0x{crc_got:X4}. expected 0x{crc_computed:X4}");
