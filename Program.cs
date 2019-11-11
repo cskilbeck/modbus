@@ -32,24 +32,26 @@ namespace modbus
 
             app.OnExecute(() =>
             {
+                bool ok = true;
                 if (!(com_port_option.HasValue() && address_option.HasValue() && baud_rate_option.HasValue()))
                 {
+                    Console.Error.WriteLine("Need at least com port, baud rate and address");
                     app.ShowHelp();
-                    return 0;
+                    ok = false;
                 }
                 byte address;
                 if (!byte.TryParse(address_option.Value(), out address))
                 {
                     Console.Error.WriteLine($"Invalid device address: {address_option.Value()}");
                     app.ShowHelp();
-                    return 0;
+                    ok = false;
                 }
                 int baud_rate;
                 if(!int.TryParse(baud_rate_option.Value(), out baud_rate))
                 {
                     Console.Error.WriteLine($"Invalid baud rate: {baud_rate_option.Value()}");
                     app.ShowHelp();
-                    return 0;
+                    ok = false;
                 }
                 // if from, to, interval, step are specified, do that, otherwise just show status
                 int from = 0;
@@ -62,12 +64,11 @@ namespace modbus
                     if (from_option.HasValue() || to_option.HasValue() || interval_option.HasValue() || step_option.HasValue())
                     {
                         Console.Error.WriteLine("Must specify all or none of --from, --to, --interval, --step options");
-                        return 0;
+                        ok = false;
                     }
                 }
                 else
                 {
-                    bool ok = true;
                     if (!int.TryParse(from_option.Value(), out from) || from < 0 || from > 40000)
                     {
                         Console.Error.WriteLine($"Bad value for 'from' option, must be 0 .. 40000 (mA)");
@@ -83,7 +84,7 @@ namespace modbus
                         Console.Error.WriteLine($"Bad value for 'interval' option, must be 0 .. 360000 (ms)");
                         ok = false;
                     }
-                    if (!int.TryParse(step_option.Value(), out step) || step < 0 || step > 10000)
+                    if (!int.TryParse(step_option.Value(), out step) || Math.Abs(step) > 10000)
                     {
                         Console.Error.WriteLine($"Bad value for 'step' option, must be 0 .. 10000 (mA)");
                         ok = false;
@@ -98,10 +99,10 @@ namespace modbus
                         Console.Error.WriteLine($"Can't step 0, it will never get there");
                         ok = false;
                     }
-                    if(!ok)
-                    {
-                        return 0;
-                    }
+                }
+                if (!ok)
+                {
+                    return 0;
                 }
                 kp184 device = new kp184();
                 if (!device.open(com_port_option.Value(), baud_rate))
@@ -115,14 +116,14 @@ namespace modbus
                 device.get_status();
                 if(ramp)
                 {
-                    if((from < to && step > 0) || (from > to && step > 0))
+                    if((from < to && step < 0) || (from > to && step > 0))
                     {
-                        Console.WriteLine($"Stepping {-step} instead of {step} so it works");
                         step = -step;
+                        Console.WriteLine($"Changing stop to {step} from {-step} so it works");
                     }
                     Console.WriteLine($"Stepping from {from} to {to} in steps of {step}mA at intervals of {interval}ms");
                     int current = from;
-                    while ((current < to) != ((current + step) > to))
+                    while((step < 0 && current >= to) || (step > 0 && current <= to))
                     {
                         device.set_current((uint)current);
                         current += step;
