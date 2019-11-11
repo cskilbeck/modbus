@@ -123,11 +123,19 @@ namespace modbus
                     }
                     Console.WriteLine($"Stepping from {from} to {to} in steps of {step}mA at intervals of {interval}ms");
                     int current = from;
-                    while((step < 0 && current >= to) || (step > 0 && current <= to))
+                    var stop_watch = new System.Diagnostics.Stopwatch();
+                    var step_time = TimeSpan.FromMilliseconds(step);
+                    while ((step < 0 && current >= to) || (step > 0 && current <= to))
                     {
+                        stop_watch.Restart();
                         device.set_current((uint)current);
-                        current += step;
-                        Thread.Sleep(interval);
+                        current += step;                        
+                        stop_watch.Stop();
+                        int ms_remaining = (step_time - stop_watch.Elapsed).Milliseconds;
+                        if (ms_remaining > 0)
+                        {
+                            Thread.Sleep(ms_remaining);
+                        }
                     }
                 }
                 device.close();
