@@ -168,7 +168,7 @@ namespace modbus
                 return false;
             }
             switch_status = (load_switch)(response[3] & 1);
-            switch_mode = (load_mode)((response[3] >> 1) & 3);
+            switch_mode = (load_mode)((response[3] >> 1) & 7);  // TODO (chs): then look this up, the values in the status are wacky
             voltage = ((uint)response[5] << 16) | ((uint)response[6] << 8) | response[7];
             current = ((uint)response[8] << 16) | ((uint)response[9] << 8) | response[10];
             Log.Info("Status:");

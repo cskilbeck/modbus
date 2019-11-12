@@ -39,21 +39,16 @@ namespace modbus
                 Log.Level verbosity = Log.Level.Info;
                 if (verbose_option.HasValue())
                 {
-                    if (verbose_option.Value() == null)
+                    Log.level = Log.Level.Verbose;
+                    if (verbose_option.Value() != null)
                     {
-                        Log.level = Log.Level.Verbose;
-                    }
-                    else
-                    {
-                        Log.Level verbose_level;
-                        int verbose_level_int;
-                        if (Enum.TryParse(verbose_option.Value(), true, out verbose_level) && verbose_level >= 0 && verbose_level <= (int)Log.Level.Debug)
+                        if (Enum.TryParse(verbose_option.Value(), true, out Log.Level level) && level >= 0 && level <= Log.Level.Error)
                         {
-                            verbosity = verbose_level;
+                            verbosity = level;
                         }
-                        else if (int.TryParse(verbose_option.Value(), out verbose_level_int) && verbose_level_int >= 0 && verbose_level_int <= (int)Log.Level.Error)
+                        else if (int.TryParse(verbose_option.Value(), out int level_int) && level_int >= 0 && level_int <= (int)Log.Level.Error)
                         {
-                            verbosity = (Log.Level)verbose_level_int;
+                            verbosity = (Log.Level)level_int;
                         }
                         else
                         {
