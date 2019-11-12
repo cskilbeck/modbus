@@ -1,6 +1,6 @@
 ﻿//////////////////////////////////////////////////////////////////////
 
-using Microsoft.Extensions.CommandLineUtils;
+using McMaster.Extensions.CommandLineUtils;
 using System;
 using System.Threading;
 
@@ -29,74 +29,112 @@ namespace modbus
             CommandOption to_option = app.Option("-t|--to", "ending current (mA)", CommandOptionType.SingleValue);
             CommandOption interval_option = app.Option("-i|--interval", "interval time(ms)", CommandOptionType.SingleValue);
             CommandOption step_option = app.Option("-s|--step", "step amount (mA)", CommandOptionType.SingleValue);
+            CommandOption verbose_option = app.Option("-v|--verbose", "verbosity (0..4), defaults to 2", CommandOptionType.SingleOrNoValue);
 
             app.OnExecute(() =>
             {
                 bool ok = true;
+
+                // verbose
+                Log.Level verbosity = Log.Level.Info;
+                if (verbose_option.HasValue())
+                {
+                    if (verbose_option.Value() == null)
+                    {
+                        Log.level = Log.Level.Verbose;
+                    }
+                    else
+                    {
+                        Log.Level verbose_level;
+                        int verbose_level_int;
+                        if (Enum.TryParse(verbose_option.Value(), true, out verbose_level) && verbose_level >= 0 && verbose_level <= (int)Log.Level.Debug)
+                        {
+                            verbosity = verbose_level;
+                        }
+                        else if (int.TryParse(verbose_option.Value(), out verbose_level_int) && verbose_level_int >= 0 && verbose_level_int <= (int)Log.Level.Error)
+                        {
+                            verbosity = (Log.Level)verbose_level_int;
+                        }
+                        else
+                        {
+                            Log.Error($"Invalid verbosity level '{verbose_option.Value()}'");
+                            ok = false;
+                        }
+                    }
+                }
+                Log.level = verbosity;
+
+                // com_port
                 if (!(com_port_option.HasValue() && address_option.HasValue() && baud_rate_option.HasValue()))
                 {
-                    Console.Error.WriteLine("Need at least com port, baud rate and address");
+                    Log.Error("Need at least com port, baud rate and address");
                     app.ShowHelp();
                     ok = false;
                 }
+
+                // address
                 byte address;
                 if (!byte.TryParse(address_option.Value(), out address))
                 {
-                    Console.Error.WriteLine($"Invalid device address: {address_option.Value()}");
+                    Log.Error($"Invalid device address: {address_option.Value()}");
                     app.ShowHelp();
                     ok = false;
                 }
+
+                // baud_rate
                 int baud_rate;
-                if(!int.TryParse(baud_rate_option.Value(), out baud_rate))
+                if (!int.TryParse(baud_rate_option.Value(), out baud_rate))
                 {
-                    Console.Error.WriteLine($"Invalid baud rate: {baud_rate_option.Value()}");
+                    Log.Error($"Invalid baud rate: {baud_rate_option.Value()}");
                     app.ShowHelp();
                     ok = false;
                 }
+
                 // if from, to, interval, step are specified, do that, otherwise just show status
                 int from = 0;
                 int to = 0;
                 int interval = 0;
                 int step = 0;
                 bool ramp = from_option.HasValue() && to_option.HasValue() && interval_option.HasValue() && step_option.HasValue();
-                if(!ramp)
+                if (!ramp)
                 {
                     if (from_option.HasValue() || to_option.HasValue() || interval_option.HasValue() || step_option.HasValue())
                     {
-                        Console.Error.WriteLine("Must specify all or none of --from, --to, --interval, --step options");
+                        Log.Error("Must specify all or none of --from, --to, --interval, --step options");
                         ok = false;
                     }
                 }
                 else
                 {
+                    // validate from, to, step, interval parameters
                     if (!int.TryParse(from_option.Value(), out from) || from < 0 || from > 40000)
                     {
-                        Console.Error.WriteLine($"Bad value for 'from' option, must be 0 .. 40000 (mA)");
+                        Log.Error($"Bad value ({from_option.Value()}) for 'from' option, must be 0 .. 40000 (mA)");
                         ok = false;
                     }
                     if (!int.TryParse(to_option.Value(), out to) || to < 0 || to > 40000)
                     {
-                        Console.Error.WriteLine($"Bad value for 'to' option, must be 0 .. 40000 (mA)");
+                        Log.Error($"Bad value ({to_option.Value()})for 'to' option, must be 0 .. 40000 (mA)");
                         ok = false;
                     }
                     if (!int.TryParse(interval_option.Value(), out interval) || interval < 0 || interval > 360000)
                     {
-                        Console.Error.WriteLine($"Bad value for 'interval' option, must be 0 .. 360000 (ms)");
+                        Log.Error($"Bad value ({interval_option.Value()})for 'interval' option, must be 0 .. 360000 (ms)");
                         ok = false;
                     }
                     if (!int.TryParse(step_option.Value(), out step) || Math.Abs(step) > 10000)
                     {
-                        Console.Error.WriteLine($"Bad value for 'step' option, must be 0 .. 10000 (mA)");
+                        Log.Error($"Bad ({step_option.Value()})value for 'step' option, must be 0 .. 10000 (mA)");
                         ok = false;
                     }
                     if (from == to)
                     {
-                        Console.Error.WriteLine($"Can't step from {from} to {to}");
+                        Log.Error($"Can't step from {from} to {to}");
                         ok = false;
                     }
-                    if(step == 0)
+                    if (step == 0)
                     {
-                        Console.Error.WriteLine($"Can't step 0, it will never get there");
+                        Log.Error($"Can't step 0, it will never get there");
                         ok = false;
                     }
                 }
@@ -104,24 +142,25 @@ namespace modbus
                 {
                     return 0;
                 }
+
                 kp184 device = new kp184();
                 if (!device.open(com_port_option.Value(), baud_rate))
                 {
                     return 0;
                 }
-                Console.WriteLine($"COM Port: {com_port_option.Value()}");
-                Console.WriteLine($"BAUD Rate: {baud_rate}");
-                Console.WriteLine($"Address: {address}");
+                Log.Verbose($"COM Port: {com_port_option.Value()}");
+                Log.Verbose($"BAUD Rate: {baud_rate}");
+                Log.Verbose($"Address: {address}");
                 device.address = address;
                 device.get_status();
-                if(ramp)
+                if (ramp)
                 {
-                    if((from < to && step < 0) || (from > to && step > 0))
+                    if ((from < to && step < 0) || (from > to && step > 0))
                     {
                         step = -step;
-                        Console.WriteLine($"Changing step to {step} from {-step} so it works");
+                        Log.Warning($"Changing step to {step} from {-step} so it works");
                     }
-                    Console.WriteLine($"Stepping from {from} to {to} in steps of {step}mA at intervals of {interval}ms");
+                    Log.Info($"Stepping from {from} to {to} in steps of {step}mA at intervals of {interval}ms");
                     int current = from;
                     var stop_watch = new System.Diagnostics.Stopwatch();
                     var step_time = TimeSpan.FromMilliseconds(step);
@@ -129,7 +168,7 @@ namespace modbus
                     {
                         stop_watch.Restart();
                         device.set_current((uint)current);
-                        current += step;                        
+                        current += step;
                         stop_watch.Stop();
                         int ms_remaining = (step_time - stop_watch.Elapsed).Milliseconds;
                         if (ms_remaining > 0)
@@ -148,7 +187,7 @@ namespace modbus
             }
             catch (CommandParsingException e)
             {
-                Console.Error.WriteLine($"{e.Message}");
+                Log.Error($"{e.Message}");
             }
         }
     }

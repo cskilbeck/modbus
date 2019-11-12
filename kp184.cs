@@ -171,11 +171,11 @@ namespace modbus
             switch_mode = (load_mode)((response[3] >> 1) & 3);
             voltage = ((uint)response[5] << 16) | ((uint)response[6] << 8) | response[7];
             current = ((uint)response[8] << 16) | ((uint)response[9] << 8) | response[10];
-            Console.WriteLine("Status:");
-            Console.WriteLine($"   Switch is {switch_status}");
-            Console.WriteLine($"   Mode is {switch_mode}");
-            Console.WriteLine($"   Current is {current}");
-            Console.WriteLine($"   Voltage is {voltage}");
+            Log.Info("Status:");
+            Log.Info($"   Switch is {switch_status}");
+            Log.Info($"   Mode is {switch_mode}");
+            Log.Info($"   Current is {current}");
+            Log.Info($"   Voltage is {voltage}");
             return true;
         }
 
@@ -184,19 +184,19 @@ namespace modbus
 
         public bool set_current(uint milliamps)
         {
-            Console.WriteLine($"Set current to {milliamps}mA");
+            Log.Verbose($"Set current to {milliamps}mA");
             return write_register((ushort)register.current, milliamps);
         }
 
         public bool set_mode(load_mode mode)
         {
-            Console.WriteLine($"Set mode to {mode}");
+            Log.Verbose($"Set mode to {mode}");
             return write_register((ushort)register.load_mode, (uint)mode);
         }
 
         public bool set_load_switch(load_switch on_or_off)
         {
-            Console.WriteLine($"Set switch {on_or_off}");
+            Log.Verbose($"Set switch {on_or_off}");
             return write_register((ushort)register.load_switch, (uint)on_or_off);
         }
     }

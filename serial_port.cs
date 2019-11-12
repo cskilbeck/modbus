@@ -41,7 +41,7 @@ namespace modbus
                 }
                 catch (System.IO.IOException e)
                 {
-                    Console.Error.WriteLine($"Error opening {port.PortName} : {e.GetType()} - {e.Message}");
+                    Log.Error($"Error opening {port.PortName} : {e.GetType()} - {e.Message}");
                 }
             }
             return false;
@@ -76,15 +76,15 @@ namespace modbus
             }
             catch (System.IO.IOException e)
             {
-                Console.Error.WriteLine($"Error writing to {port.PortName} : {e.GetType()} - {e.Message}");
+                Log.Error($"Error writing to {port.PortName} : {e.GetType()} - {e.Message}");
             }
             catch (InvalidOperationException e)
             {
-                Console.Error.WriteLine($"Error writing to {port.PortName} : {e.GetType()} - {e.Message}");
+                Log.Error($"Error writing to {port.PortName} : {e.GetType()} - {e.Message}");
             }
             catch (TimeoutException e)
             {
-                Console.Error.WriteLine($"Error writing to {port.PortName} : {e.GetType()} - {e.Message}");
+                Log.Error($"Error writing to {port.PortName} : {e.GetType()} - {e.Message}");
             }
             return false;
         }
@@ -100,15 +100,15 @@ namespace modbus
             }
             catch (System.IO.IOException e)
             {
-                Console.Error.WriteLine($"Error reading from {port.PortName} : {e.GetType()} - {e.Message}");
+                Log.Error($"Error reading from {port.PortName} : {e.GetType()} - {e.Message}");
             }
             catch (InvalidOperationException e)
             {
-                Console.Error.WriteLine($"Error reading from {port.PortName} : {e.GetType()} - {e.Message}");
+                Log.Error($"Error reading from {port.PortName} : {e.GetType()} - {e.Message}");
             }
             catch (TimeoutException e)
             {
-                Console.Error.WriteLine($"Error reading from {port.PortName} : {e.GetType()} - {e.Message}");
+                Log.Error($"Error reading from {port.PortName} : {e.GetType()} - {e.Message}");
             }
             return false;
         }
