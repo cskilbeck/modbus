@@ -11,7 +11,7 @@ using System.Threading;
 
 namespace modbus
 {
-    public class kp184 : serial_port
+    public class kp184: serial_port
     {
         public byte address;
 
@@ -24,10 +24,11 @@ namespace modbus
 
         public enum load_mode
         {
-            constant_voltage = 0,
-            constant_current = 1,
-            constant_resistance = 2,
-            constant_watts = 3
+            cv = 0,
+            cc = 1,
+            cr = 2,
+            cw = 3,
+            invalid = -1
         };
 
         //////////////////////////////////////////////////////////////////////
@@ -35,7 +36,8 @@ namespace modbus
         public enum load_switch
         {
             off = 0,
-            on = 1
+            on = 1,
+            invalid = -1
         };
 
         //////////////////////////////////////////////////////////////////////
@@ -91,11 +93,11 @@ namespace modbus
         private byte[] get_response(int length)
         {
             byte[] response = new byte[length];
-            if (!read(response, length))
+            if(!read(response, length))
             {
                 return null;
             }
-            if (checksum.verify(response, length))
+            if(checksum.verify(response, length))
             {
                 return response;
             }
@@ -112,7 +114,7 @@ namespace modbus
             message[6] = (byte)(num_registers * 4);
             int rstart = 7;
             int rend = 7 + num_registers * 4;
-            for (int i = rstart; i < rend;)
+            for(int i = rstart; i < rend;)
             {
                 message[i++] = (byte)(values[i] >> 24);
                 message[i++] = (byte)(values[i] >> 16);
@@ -120,7 +122,7 @@ namespace modbus
                 message[i++] = (byte)(values[i] >> 0);
             }
             init_message(command.write_multiple, start_register, num_registers, ref message);
-            if (!write(message, message.Length))
+            if(!write(message, message.Length))
             {
                 return false;
             }
@@ -140,7 +142,7 @@ namespace modbus
             message[9] = (byte)(value >> 8);
             message[10] = (byte)(value >> 0);
             init_message(command.write_single, register, 1, ref message);
-            if (!write(message, message.Length))
+            if(!write(message, message.Length))
             {
                 return false;
             }
@@ -157,13 +159,13 @@ namespace modbus
             // wacky special read at 0x300 means get them all and the format of the return message is... special
             init_message(command.read_registers, 0x300, 0, ref message);
             flush();
-            if (!write(message, message.Length))
+            if(!write(message, message.Length))
             {
                 return false;
             }
             delay();
             byte[] response = get_response(23);
-            if (response == null)
+            if(response == null)
             {
                 return false;
             }

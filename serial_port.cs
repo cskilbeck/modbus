@@ -25,7 +25,7 @@ namespace modbus
         {
             close();
 
-            if (!port.IsOpen)
+            if(!port.IsOpen)
             {
                 port.PortName = portName;
                 port.BaudRate = baudRate;
@@ -39,7 +39,7 @@ namespace modbus
                     port.Open();
                     return true;
                 }
-                catch (System.IO.IOException e)
+                catch(System.IO.IOException e)
                 {
                     Log.Error($"Error opening {port.PortName} : {e.GetType()} - {e.Message}");
                 }
@@ -59,7 +59,7 @@ namespace modbus
 
         public void close()
         {
-            if (port.IsOpen)
+            if(port.IsOpen)
             {
                 port.Close();
             }
@@ -74,15 +74,15 @@ namespace modbus
                 port.Write(message, 0, len);
                 return true;
             }
-            catch (System.IO.IOException e)
+            catch(System.IO.IOException e)
             {
                 Log.Error($"Error writing to {port.PortName} : {e.GetType()} - {e.Message}");
             }
-            catch (InvalidOperationException e)
+            catch(InvalidOperationException e)
             {
                 Log.Error($"Error writing to {port.PortName} : {e.GetType()} - {e.Message}");
             }
-            catch (TimeoutException e)
+            catch(TimeoutException e)
             {
                 Log.Error($"Error writing to {port.PortName} : {e.GetType()} - {e.Message}");
             }
@@ -98,15 +98,15 @@ namespace modbus
                 port.Read(buffer, 0, len);
                 return true;
             }
-            catch (System.IO.IOException e)
+            catch(System.IO.IOException e)
             {
                 Log.Error($"Error reading from {port.PortName} : {e.GetType()} - {e.Message}");
             }
-            catch (InvalidOperationException e)
+            catch(InvalidOperationException e)
             {
                 Log.Error($"Error reading from {port.PortName} : {e.GetType()} - {e.Message}");
             }
-            catch (TimeoutException e)
+            catch(TimeoutException e)
             {
                 Log.Error($"Error reading from {port.PortName} : {e.GetType()} - {e.Message}");
             }
