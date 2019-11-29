@@ -4,27 +4,9 @@ using System;
 using System.Threading;
 using Args;
 
-// Usage
-//
-//  Commands are separated by semicolons
-//      port [comport]
-//      address [int]
-//      baud [baudrate]
-//      load [on|off]
-//      mode [cc|cv|cw|cr]
-//      ramp start end step interval
-//      verbose [1..4]
-
-// eg,  to put the load on COM5 at address 1 with baudrate 115200 in constant
-//      current mode, then switch on the load, then step from 0mA to 4000mA
-//      in steps of 100mA at 100ms intervals, then step from 4000mA down to
-//      0mA in steps of 100mA at 100ms intervals, then switch the load off:
-
-// verbose;address 0; loglevel debug; port COM5;baud 115200; mode cc; load; ramp 0 4000 100 100; ramp 4000 0 100 100; load off;help;eff 1.5
-
 //////////////////////////////////////////////////////////////////////
 
-namespace modbus
+namespace KP184
 {
     class Program
     {
@@ -52,6 +34,7 @@ namespace modbus
             if(!device.port.IsOpen)
             {
                 device.address = address;
+                Log.Debug($"Starting device on {com_port}:{baud_rate}, address {address}");
                 return device.open(com_port, baud_rate);
             }
             return true;
@@ -62,36 +45,32 @@ namespace modbus
             [Help("Show this help text")]
             void help()
             {
-                show_help();
-                throw new Args.Error("");
+                show_help("KP184 Controller");
+                throw new Args.FatalError("");
             }
 
             [Help("Set the com port")]
             void port(string com_port)
             {
                 Program.com_port = com_port;
-                Log.Verbose($"COM port: {com_port}");
             }
 
             [Help("Set verbose mode")]
             void verbose()
             {
                 Log.level = Log.Level.Verbose;
-                Log.Verbose($"Verbose = {Log.level}");
             }
 
             [Help("Set the log level")]
             void loglevel(Log.Level level)
             {
                 Log.level = level;
-                Log.Verbose($"Log level: {level}");
             }
 
             [Help("Set the baud rate")]
             void baud(int baud_rate)
             {
                 Program.baud_rate = baud_rate;
-                Log.Verbose($"BAUD rate: {baud_rate}");
             }
 
             [Help("Set the device address")]
@@ -102,7 +81,6 @@ namespace modbus
                     throw new Args.Error($"Device address can't be 0");
                 }
                 Program.address = device_address;
-                Log.Verbose($"Address: {device_address}");
             }
 
             [Help("Switch the load on or off")]

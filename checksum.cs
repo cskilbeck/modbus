@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 //////////////////////////////////////////////////////////////////////
 
-namespace modbus
+namespace KP184
 {
     //////////////////////////////////////////////////////////////////////
 
@@ -20,7 +20,7 @@ namespace modbus
         {
             Console.Error.Write(header);
             string sep = "";
-            for (int i = 0; i < length; ++i)
+            for(int i = 0; i < length; ++i)
             {
                 Console.Error.Write($"{sep}{message[i]:X2}");
                 sep = ",";
@@ -34,13 +34,13 @@ namespace modbus
         public static ushort compute(byte[] message, int length)
         {
             ushort crc = 0xffff;
-            for (int i = 0; i < length; ++i)
+            for(int i = 0; i < length; ++i)
             {
                 crc ^= message[i];
-                for (int j = 0; j < 8; ++j)
+                for(int j = 0; j < 8; ++j)
                 {
                     ushort xor = 0;
-                    if ((crc & 1) != 0)
+                    if((crc & 1) != 0)
                     {
                         xor = 0xa001;
                     }

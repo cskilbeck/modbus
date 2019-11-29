@@ -72,15 +72,45 @@ namespace Args
 
         //////////////////////////////////////////////////////////////////////
 
-        string get_help(MethodInfo method)
+        string param_help(MethodInfo method)
         {
-            StringBuilder s = new StringBuilder();
             ParameterInfo[] p = method.GetParameters();
             foreach(HelpAttribute h in method.GetCustomAttributes<HelpAttribute>())
             {
-                s.Append($"{h.help}");
+                foreach(ParameterInfo param in method.GetParameters())
+                {
+                    Type t = param.ParameterType;
+                    string n = param.Name;
+                    if(t == typeof(string))
+                    {
+                        return param.Name;
+                    }
+                    else if(t.IsEnum)
+                    {
+                        return $"[{string.Join("|", Enum.GetNames(t))}]";
+                    }
+                    else if(t.IsPrimitive)
+                    {
+                        return $"{n}({t.Name})";
+                    }
+                    else
+                    {
+                        return "??";
+                    }
+                }
             }
-            return s.ToString();
+            return string.Empty;
+        }
+
+        //////////////////////////////////////////////////////////////////////
+
+        string get_help(MethodInfo method)
+        {
+            foreach(HelpAttribute h in method.GetCustomAttributes<HelpAttribute>())
+            {
+                return h.help;
+            }
+            return string.Empty;
         }
 
         //////////////////////////////////////////////////////////////////////
@@ -230,17 +260,25 @@ namespace Args
 
         //////////////////////////////////////////////////////////////////////
 
-        // get longest command name
-        // get longest command help
-        // get longest parameters description
-
-        public void show_help()
+        public void show_help(string header)
         {
+            int name_len = 0;
+            int help_len = 0;
+            int param_len = 0;
+
             foreach(MethodInfo m in GetType().GetMethods(binding_flags))
             {
-                // parameters can be string, enum or primitive type
-                Console.WriteLine($"{m.Name:20} {get_help(m)}");
+                name_len = Math.Max(m.Name.Length, name_len);
+                help_len = Math.Max(get_help(m).Length, help_len);
+                param_len = Math.Max(param_help(m).Length, param_len);
             }
+
+            Console.WriteLine($"{header}\n");
+            foreach(MethodInfo m in GetType().GetMethods(binding_flags))
+            {
+                Console.WriteLine($"{m.Name.PadRight(name_len)} {param_help(m).PadRight(param_len)} {get_help(m).PadRight(help_len)}");
+            }
+            Console.WriteLine();
         }
     }
 }

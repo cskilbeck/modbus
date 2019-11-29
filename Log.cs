@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
 
-namespace modbus
+namespace KP184
 {
     class Log
     {
@@ -18,7 +18,7 @@ namespace modbus
 
         public static void Write(Level severity, object o, [CallerMemberName]string tag = "", [CallerFilePath]string file = "", [CallerLineNumber]int line = 0)
         {
-            if (severity >= level)
+            if(severity >= level)
             {
                 System.Diagnostics.Debug.WriteLine($"{tag}:{o}");
                 Console.WriteLine($"{tag}:{o}");

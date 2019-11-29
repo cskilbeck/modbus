@@ -9,7 +9,7 @@ using System.Threading;
 
 //////////////////////////////////////////////////////////////////////
 
-namespace modbus
+namespace KP184
 {
     public class kp184: serial_port
     {
@@ -27,8 +27,7 @@ namespace modbus
             cv = 0,
             cc = 1,
             cr = 2,
-            cw = 3,
-            invalid = -1
+            cw = 3
         };
 
         //////////////////////////////////////////////////////////////////////
@@ -36,8 +35,7 @@ namespace modbus
         public enum load_switch
         {
             off = 0,
-            on = 1,
-            invalid = -1
+            on = 1
         };
 
         //////////////////////////////////////////////////////////////////////
