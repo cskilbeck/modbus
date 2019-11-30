@@ -47,6 +47,13 @@ namespace Args
     }
 
     //////////////////////////////////////////////////////////////////////
+    // apply to a function which should be called when no other function is called
+
+    public class DefaultAttribute : Attribute
+    {
+    }
+
+    //////////////////////////////////////////////////////////////////////
 
     public class Error: ApplicationException
     {
@@ -66,7 +73,7 @@ namespace Args
 
     //////////////////////////////////////////////////////////////////////
 
-    public class CommandParser
+    public class Handler
     {
         const BindingFlags binding_flags = BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly | BindingFlags.NonPublic | BindingFlags.Public;
 
@@ -75,6 +82,7 @@ namespace Args
         string param_help(MethodInfo method)
         {
             ParameterInfo[] p = method.GetParameters();
+            StringBuilder s = new StringBuilder();
             foreach(HelpAttribute h in method.GetCustomAttributes<HelpAttribute>())
             {
                 foreach(ParameterInfo param in method.GetParameters())
@@ -83,34 +91,30 @@ namespace Args
                     string n = param.Name;
                     if(t == typeof(string))
                     {
-                        return param.Name;
+                        s.Append($"{param.Name} ");
                     }
                     else if(t.IsEnum)
                     {
-                        return $"[{string.Join("|", Enum.GetNames(t))}]";
+                        s.Append($"[{string.Join("|", Enum.GetNames(t))}] ".ToLower());
                     }
                     else if(t.IsPrimitive)
                     {
-                        return $"{n}({t.Name})";
+                        s.Append($"{n}({t.Name.ToLower()}) ");
                     }
                     else
                     {
-                        return "??";
+                        s.Append("?? ");
                     }
                 }
             }
-            return string.Empty;
+            return s.ToString();
         }
 
         //////////////////////////////////////////////////////////////////////
 
         string get_help(MethodInfo method)
         {
-            foreach(HelpAttribute h in method.GetCustomAttributes<HelpAttribute>())
-            {
-                return h.help;
-            }
-            return string.Empty;
+            return method.GetCustomAttribute<HelpAttribute>()?.help;
         }
 
         //////////////////////////////////////////////////////////////////////
@@ -212,7 +216,7 @@ namespace Args
         public bool execute(string[] args)
         {
             MethodInfo[] methods = GetType().GetMethods(binding_flags);
-
+            int functions_called = 0;
             string s = string.Join(" ", args);
             string[] p = s.Split(new char[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
             foreach(string a in p)
@@ -229,13 +233,17 @@ namespace Args
                         {
                             found_command = method.Name.ToLower();
                             ParameterInfo[] parameters = method.GetParameters();
-                            parameter_counts.Add(parameters.Length);
-                            if(parameters.Length == r.Length - 1)
+                            if(method.GetCustomAttribute<HelpAttribute>() != null)
                             {
-                                found = true;
-                                if(run(method, r))
+                                parameter_counts.Add(parameters.Length);
+                                if (parameters.Length == r.Length - 1)
                                 {
-                                    break;
+                                    found = true;
+                                    functions_called += 1;
+                                    if (run(method, r))
+                                    {
+                                        break;
+                                    }
                                 }
                             }
                         }
@@ -255,7 +263,30 @@ namespace Args
                     }
                 }
             }
+            if(functions_called == 0)
+            {
+                foreach(MethodInfo m in GetType().GetMethods(binding_flags))
+                {
+                    if(m.GetCustomAttribute<DefaultAttribute>() != null && m.GetParameters().Length == 0)
+                    {
+                        try
+                        {
+                            m.Invoke(this, null);
+                        }
+                        catch(TargetInvocationException e) when (e.InnerException.GetType().BaseType == typeof(System.ApplicationException))
+                        {
+                        }
+                        break;
+                    }
+                }
+
+            }
             return true;
+        }
+
+        public static bool find_default(MemberInfo m, Object s)
+        {
+            return m.GetCustomAttribute<DefaultAttribute>() != null;
         }
 
         //////////////////////////////////////////////////////////////////////
@@ -273,7 +304,7 @@ namespace Args
                 param_len = Math.Max(param_help(m).Length, param_len);
             }
 
-            Console.WriteLine($"{header}\n");
+            Console.WriteLine($"{header}\n\nCommands:\n");
             foreach(MethodInfo m in GetType().GetMethods(binding_flags))
             {
                 Console.WriteLine($"{m.Name.PadRight(name_len)} {param_help(m).PadRight(param_len)} {get_help(m).PadRight(help_len)}");
