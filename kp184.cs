@@ -86,6 +86,18 @@ namespace KP184
         }
 
         //////////////////////////////////////////////////////////////////////
+
+        private bool send_message(command type, ushort start, ushort registers, ref byte[] message)
+        {
+            if(address == 0)
+            {
+                throw new ApplicationException($"Device address has not been set");
+            }
+            init_message(type, start, registers, ref message);
+            return write(message, message.Length);
+        }
+
+        //////////////////////////////////////////////////////////////////////
         // get a checked modbus response
 
         private byte[] get_response(int length)
@@ -119,8 +131,7 @@ namespace KP184
                 message[i++] = (byte)(values[i] >> 8);
                 message[i++] = (byte)(values[i] >> 0);
             }
-            init_message(command.write_multiple, start_register, num_registers, ref message);
-            if(!write(message, message.Length))
+            if(!send_message(command.write_multiple, start_register, num_registers, ref message))
             {
                 return false;
             }
@@ -139,8 +150,7 @@ namespace KP184
             message[8] = (byte)(value >> 16);
             message[9] = (byte)(value >> 8);
             message[10] = (byte)(value >> 0);
-            init_message(command.write_single, register, 1, ref message);
-            if(!write(message, message.Length))
+            if(!send_message(command.write_single, register, 1, ref message))
             {
                 return false;
             }
@@ -155,9 +165,7 @@ namespace KP184
         {
             byte[] message = new byte[8];
             // wacky special read at 0x300 means get them all and the format of the return message is... special
-            init_message(command.read_registers, 0x300, 0, ref message);
-            flush();
-            if(!write(message, message.Length))
+            if(!send_message(command.read_registers, 0x300, 0, ref message))
             {
                 return false;
             }

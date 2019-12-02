@@ -14,7 +14,20 @@ namespace KP184
             Error
         };
 
-        public static Level level = Level.Info;
+        static Level _log_level = Level.Info;
+
+        public static Level level
+        {
+            get
+            {
+                return _log_level;
+            }
+            set
+            {
+                _log_level = value;
+                Log.Debug($"Setting log level to {value}");
+            }
+        }
 
         public static void Write(Level severity, object o, [CallerMemberName]string tag = "", [CallerFilePath]string file = "", [CallerLineNumber]int line = 0)
         {

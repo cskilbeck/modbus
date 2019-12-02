@@ -10,7 +10,7 @@ namespace Args
 
     static class Print
     {
-        static void InternalPrint(string m, ConsoleColor c)
+        static void InternalPrintLine(string m, ConsoleColor c)
         {
             var old_color = Console.ForegroundColor;
             Console.ForegroundColor = c;
@@ -18,19 +18,32 @@ namespace Args
             Console.ForegroundColor = old_color;
         }
 
+        static void InternalPrint(string m, ConsoleColor c)
+        {
+            var old_color = Console.ForegroundColor;
+            Console.ForegroundColor = c;
+            Console.Error.Write(m);
+            Console.ForegroundColor = old_color;
+        }
+
         public static void Error(string m)
         {
-            InternalPrint(m, ConsoleColor.Red);
+            InternalPrintLine(m, ConsoleColor.Red);
         }
 
         public static void Warning(string m)
         {
-            InternalPrint(m, ConsoleColor.Yellow);
+            InternalPrintLine(m, ConsoleColor.Yellow);
         }
 
-        public static void Message(string m)
+        public static void Line(string m, ConsoleColor c = ConsoleColor.White)
         {
-            Console.WriteLine(m);
+            InternalPrintLine(m, c);
+        }
+
+        public static void Text(string m, ConsoleColor c = ConsoleColor.White)
+        {
+            InternalPrint(m, c);
         }
     }
 
@@ -49,7 +62,7 @@ namespace Args
     //////////////////////////////////////////////////////////////////////
     // apply to a function which should be called when no other function is called
 
-    public class DefaultAttribute : Attribute
+    public class DefaultAttribute: Attribute
     {
     }
 
@@ -83,7 +96,8 @@ namespace Args
         {
             ParameterInfo[] p = method.GetParameters();
             StringBuilder s = new StringBuilder();
-            foreach(HelpAttribute h in method.GetCustomAttributes<HelpAttribute>())
+            HelpAttribute h = method.GetCustomAttribute<HelpAttribute>();
+            if(h != null)
             {
                 foreach(ParameterInfo param in method.GetParameters())
                 {
@@ -108,13 +122,6 @@ namespace Args
                 }
             }
             return s.ToString();
-        }
-
-        //////////////////////////////////////////////////////////////////////
-
-        string get_help(MethodInfo method)
-        {
-            return method.GetCustomAttribute<HelpAttribute>()?.help;
         }
 
         //////////////////////////////////////////////////////////////////////
@@ -215,7 +222,6 @@ namespace Args
 
         public bool execute(string[] args)
         {
-            MethodInfo[] methods = GetType().GetMethods(binding_flags);
             int functions_called = 0;
             string s = string.Join(" ", args);
             string[] p = s.Split(new char[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
@@ -227,7 +233,7 @@ namespace Args
                     List<int> parameter_counts = new List<int>();
                     bool found = false;
                     string found_command = null;
-                    foreach(MethodInfo method in methods)
+                    foreach(MethodInfo method in CommandMethods)
                     {
                         if(string.Compare(r[0], method.Name, StringComparison.OrdinalIgnoreCase) == 0)
                         {
@@ -236,11 +242,11 @@ namespace Args
                             if(method.GetCustomAttribute<HelpAttribute>() != null)
                             {
                                 parameter_counts.Add(parameters.Length);
-                                if (parameters.Length == r.Length - 1)
+                                if(parameters.Length == r.Length - 1)
                                 {
                                     found = true;
                                     functions_called += 1;
-                                    if (run(method, r))
+                                    if(run(method, r))
                                     {
                                         break;
                                     }
@@ -265,18 +271,15 @@ namespace Args
             }
             if(functions_called == 0)
             {
-                foreach(MethodInfo m in GetType().GetMethods(binding_flags))
+                MethodInfo m = DefaultMethod;
+                if(m != null)
                 {
-                    if(m.GetCustomAttribute<DefaultAttribute>() != null && m.GetParameters().Length == 0)
+                    try
                     {
-                        try
-                        {
-                            m.Invoke(this, null);
-                        }
-                        catch(TargetInvocationException e) when (e.InnerException.GetType().BaseType == typeof(System.ApplicationException))
-                        {
-                        }
-                        break;
+                        m.Invoke(this, null);
+                    }
+                    catch(TargetInvocationException e) when(e.InnerException.GetType().BaseType == typeof(System.ApplicationException))
+                    {
                     }
                 }
 
@@ -284,30 +287,59 @@ namespace Args
             return true;
         }
 
-        public static bool find_default(MemberInfo m, Object s)
+        //////////////////////////////////////////////////////////////////////
+
+        IEnumerable<MethodInfo> CommandMethods
         {
-            return m.GetCustomAttribute<DefaultAttribute>() != null;
+            get
+            {
+                return GetType().GetMethods(binding_flags).Where(x => x.GetCustomAttribute<HelpAttribute>() != null);
+            }
         }
 
         //////////////////////////////////////////////////////////////////////
 
-        public void show_help(string header)
+        MethodInfo DefaultMethod
         {
+            get
+            {
+                return GetType().GetMethods(binding_flags).First(x => x.GetCustomAttribute<DefaultAttribute>() != null);
+            }
+        }
+
+        //////////////////////////////////////////////////////////////////////
+
+        string get_help(MethodInfo method)
+        {
+            return method.GetCustomAttribute<HelpAttribute>()?.help;
+        }
+
+        //////////////////////////////////////////////////////////////////////
+
+        public void show_help(string application_name, string header)
+        {
+            Print.Line($"{application_name}\n", ConsoleColor.Green);
+            Print.Line($"{header}\n");
+            Print.Line("Commands:\n");
+
             int name_len = 0;
             int help_len = 0;
             int param_len = 0;
 
-            foreach(MethodInfo m in GetType().GetMethods(binding_flags))
+            foreach(MethodInfo m in CommandMethods)
             {
-                name_len = Math.Max(m.Name.Length, name_len);
-                help_len = Math.Max(get_help(m).Length, help_len);
-                param_len = Math.Max(param_help(m).Length, param_len);
+                if(m.GetCustomAttribute<HelpAttribute>() != null)
+                {
+                    name_len = Math.Max(m.Name.Length, name_len);
+                    help_len = Math.Max(get_help(m).Length, help_len);
+                    param_len = Math.Max(param_help(m).Length, param_len);
+                }
             }
 
-            Console.WriteLine($"{header}\n\nCommands:\n");
-            foreach(MethodInfo m in GetType().GetMethods(binding_flags))
+            foreach(MethodInfo m in CommandMethods)
             {
-                Console.WriteLine($"{m.Name.PadRight(name_len)} {param_help(m).PadRight(param_len)} {get_help(m).PadRight(help_len)}");
+                Print.Text($"{m.Name.PadRight(name_len)}", ConsoleColor.Yellow);
+                Print.Line($" {param_help(m).PadRight(param_len)} {get_help(m).PadRight(help_len)}");
             }
             Console.WriteLine();
         }

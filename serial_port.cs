@@ -21,17 +21,28 @@ namespace KP184
 
         //////////////////////////////////////////////////////////////////////
 
-        public bool open(string portName, int baudRate, int databits = 8, Parity parity = Parity.None, StopBits stopBits = StopBits.One)
+        public bool open()
         {
-            close();
-
             if(!port.IsOpen)
             {
-                port.PortName = portName;
-                port.BaudRate = baudRate;
-                port.DataBits = databits;
-                port.Parity = parity;
-                port.StopBits = stopBits;
+                bool open_it = true;
+                if(string.IsNullOrEmpty(port.PortName))
+                {
+                    Log.Error($"No com port set");
+                    open_it = false;
+                }
+                if(port.BaudRate == 0)
+                {
+                    Log.Error($"Baud rate not set");
+                    open_it = false;
+                }
+                if(!open_it)
+                {
+                    return false;
+                }
+                port.DataBits = 8;
+                port.Parity = Parity.None;
+                port.StopBits = StopBits.One;
                 port.ReadTimeout = 1000;
                 port.WriteTimeout = 1000;
                 try
@@ -69,6 +80,10 @@ namespace KP184
 
         public bool write(byte[] message, int len)
         {
+            if(!open())
+            {
+                return false;
+            }
             try
             {
                 port.Write(message, 0, len);
@@ -93,6 +108,10 @@ namespace KP184
 
         public bool read(byte[] buffer, int len)
         {
+            if(!open())
+            {
+                return false;
+            }
             try
             {
                 port.Read(buffer, 0, len);
