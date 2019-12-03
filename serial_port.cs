@@ -47,6 +47,7 @@ namespace KP184
                 port.WriteTimeout = 1000;
                 try
                 {
+                    Log.Verbose($"Opening {port.PortName} at {port.BaudRate}");
                     port.Open();
                     return true;
                 }
@@ -62,6 +63,7 @@ namespace KP184
 
         public void flush()
         {
+            Log.Debug("Flush com port");
             port.DiscardInBuffer();
             port.DiscardOutBuffer();
         }
@@ -72,6 +74,7 @@ namespace KP184
         {
             if(port.IsOpen)
             {
+                Log.Debug($"Closing {port.PortName}");
                 port.Close();
             }
         }

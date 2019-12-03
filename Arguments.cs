@@ -1,8 +1,28 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.ExceptionServices;
 using System.Text;
+
+// match is by name and argument count, parameter types not considered
+// so you can't have two commands with the same name and the same number of arguments
+//
+// eg this is not valid:
+//
+// [Help("NOPE1")] void foo(string s) {}
+// [Help("NOPE2")] void foo(int n) {}
+//
+// if you do this, only the first command will ever get called
+//
+// if a command is not found, a UsageError is thrown
+// if a command has the wrong # of arguments, a UsageError is thrown
+// Commands can throw a SilentExit exception to terminate the application silently with a return code of 0
+// Commands can throw a FatalError exception to terminate the application with an error message and a return code of 1
+// if a FatalError is thrown, the message will be printed before the application exits
+// if no command is found to run, the first command found with a [Default] attribute will be run
 
 namespace Args
 {
@@ -10,44 +30,52 @@ namespace Args
 
     static class Print
     {
-        static void InternalPrintLine(string m, ConsoleColor c)
+        static void InternalPrint(TextWriter t, string m, ConsoleColor c)
         {
             var old_color = Console.ForegroundColor;
             Console.ForegroundColor = c;
-            Console.Error.WriteLine(m);
+            t.Write(m);
             Console.ForegroundColor = old_color;
         }
 
-        static void InternalPrint(string m, ConsoleColor c)
+        static void InternalPrintLine(TextWriter t, string m, ConsoleColor c)
         {
-            var old_color = Console.ForegroundColor;
-            Console.ForegroundColor = c;
-            Console.Error.Write(m);
-            Console.ForegroundColor = old_color;
+            InternalPrint(t, $"{m}\n", c);
         }
 
         public static void Error(string m)
         {
-            InternalPrintLine(m, ConsoleColor.Red);
+            InternalPrintLine(Console.Error, m, ConsoleColor.Red);
         }
 
         public static void Warning(string m)
         {
-            InternalPrintLine(m, ConsoleColor.Yellow);
+            InternalPrintLine(Console.Out, m, ConsoleColor.Yellow);
         }
 
         public static void Line(string m, ConsoleColor c = ConsoleColor.White)
         {
-            InternalPrintLine(m, c);
+            InternalPrintLine(Console.Out, m, c);
         }
 
         public static void Text(string m, ConsoleColor c = ConsoleColor.White)
         {
-            InternalPrint(m, c);
+            InternalPrint(Console.Out, m, c);
         }
     }
 
     //////////////////////////////////////////////////////////////////////
+
+    static class Helper
+    {
+        public static bool IsCommandMethod(this MethodInfo m)
+        {
+            return m.IsDefined(typeof(HelpAttribute));
+        }
+    }
+
+    //////////////////////////////////////////////////////////////////////
+    // apply to a function which should be callable via command line
 
     public class HelpAttribute: Attribute
     {
@@ -67,9 +95,14 @@ namespace Args
     }
 
     //////////////////////////////////////////////////////////////////////
+    // base Error class (FatalError, UsageError, SilentError)
 
     public class Error: ApplicationException
     {
+        public Error() : base()
+        {
+        }
+
         public Error(string reason) : base(reason)
         {
         }
@@ -77,14 +110,36 @@ namespace Args
 
     //////////////////////////////////////////////////////////////////////
 
-    public class FatalError: ApplicationException
+    public class UsageError: Error
     {
-        public FatalError(string reason) : base(reason)
+        public UsageError(string reason) : base(reason)
         {
         }
     }
 
     //////////////////////////////////////////////////////////////////////
+
+    public class FatalError: Error
+    {
+        public int return_code;
+
+        public FatalError(string reason, int return_code) : base(reason)
+        {
+            this.return_code = return_code;
+        }
+    }
+
+    //////////////////////////////////////////////////////////////////////
+
+    public class SilentError: Error
+    {
+        public SilentError() : base()
+        {
+        }
+    }
+
+    //////////////////////////////////////////////////////////////////////
+    // Derive your class from this and add handlers with [Help("helptext")] attribute
 
     public class Handler
     {
@@ -92,12 +147,10 @@ namespace Args
 
         //////////////////////////////////////////////////////////////////////
 
-        string param_help(MethodInfo method)
+        private string param_help(MethodInfo method)
         {
-            ParameterInfo[] p = method.GetParameters();
             StringBuilder s = new StringBuilder();
-            HelpAttribute h = method.GetCustomAttribute<HelpAttribute>();
-            if(h != null)
+            if(method.IsDefined(typeof(HelpAttribute)))
             {
                 foreach(ParameterInfo param in method.GetParameters())
                 {
@@ -125,151 +178,162 @@ namespace Args
         }
 
         //////////////////////////////////////////////////////////////////////
+        // get the help string for a method (or null)
 
-        public bool run(MethodInfo method, string[] args)
+        private string get_help(MethodInfo method)
         {
-            ParameterInfo[] p = method.GetParameters();
-            if(args.Length != p.Length + 1)
+            return method.GetCustomAttribute<HelpAttribute>()?.help;
+        }
+
+        //////////////////////////////////////////////////////////////////////
+        // run a method after parsing its arguments
+
+        private void run(MethodInfo method, string[] args, bool run_it)
+        {
+            ParameterInfo[] params_info = method.GetParameters();
+
+            // this should never happen, arg counts checked in parse_args
+            if(args.Length != params_info.Length + 1)
             {
-                Print.Error($"{method.Name} command needs {p.Length} parameters, only got {args.Length}");
-                return false;
+                throw new UsageError($"{method.Name} command needs {params_info.Length} parameters, only got {args.Length}");
             }
-            object[] result = new object[p.Length];
-            for(int i = 0; i<p.Length; ++i)
+            object[] result = new object[params_info.Length];
+            for(int i = 0; i<params_info.Length; ++i)
             {
-                Type t = p[i].ParameterType;
-                string s = args[i + 1].ToLower();
+                Type param_type = params_info[i].ParameterType;
+                string arg_str = args[i + 1].ToLower();
 
                 // strings passed through
-                if(t == typeof(string))
+                if(param_type == typeof(string))
                 {
-                    result[i] = s;
+                    result[i] = arg_str;
                 }
 
                 // enums get parsed using Enum.Parse()
-                else if(t.IsEnum)
+                else if(param_type.IsEnum)
                 {
-                    if(!Enum.GetNames(t).Any(x => x.ToLower() == s))
+                    if(!Enum.GetNames(param_type).Any(x => x.ToLower() == arg_str))
                     {
-                        Print.Error($"Error, unknown option '{s}' for {method.Name}");
-                        return false;
+                        throw new UsageError($"Error, unknown option '{arg_str}' for {method.Name}");
                     }
-                    result[i] = Enum.Parse(t, s, true);
+                    result[i] = Enum.Parse(param_type, arg_str, ignoreCase: true);
                 }
 
                 // probly a number of some sort, give Parse() a go
-                else if(t.IsPrimitive)
+                else if(param_type.IsPrimitive)
                 {
-                    MethodInfo m = t.GetMethod("Parse", BindingFlags.Public | BindingFlags.Static, null, new Type[] { typeof(string) }, null);
-                    if(m != null)
+                    MethodInfo parse_method = param_type.GetMethod("Parse", BindingFlags.Public | BindingFlags.Static, null, new Type[] { typeof(string) }, null);
+                    if(parse_method != null)
                     {
                         try
                         {
-                            result[i] = m.Invoke(null, new object[] { s });
+                            result[i] = parse_method.Invoke(null, new object[] { arg_str });
                         }
                         catch(TargetInvocationException e) when(e.InnerException.GetType() == typeof(FormatException))
                         {
-                            Print.Error($"Error, can't parse {s} as {t.Name}: {e.InnerException.Message}");
-                            return false;
+                            throw new UsageError($"Error, can't parse {arg_str} as {param_type.Name}: {e.InnerException.Message}");
                         }
                         catch(TargetInvocationException e) when(e.InnerException.GetType() == typeof(OverflowException))
                         {
                             long min_val;
                             ulong max_val;
                             // get MaxValue and MinValue
-                            FieldInfo max_value = t.GetField("MaxValue");
-                            FieldInfo min_value = t.GetField("MinValue");
+                            FieldInfo max_value = param_type.GetField("MaxValue");
+                            FieldInfo min_value = param_type.GetField("MinValue");
                             max_val = (ulong)Convert.ChangeType(max_value.GetValue(null), typeof(ulong));
                             min_val = (long)Convert.ChangeType(min_value.GetValue(null), typeof(long));
-                            Print.Error($"Error, value {s} out of range for {method.Name} (can be {min_val}..{max_val})");
-                            return false;
+                            throw new UsageError($"Error, value {arg_str} out of range for {parse_method.Name} (can be {min_val}..{max_val})");
                         }
                     }
                     else
                     {
-                        Print.Error($"Error, can't find {t.Name}.Parse(string)");
-                        return false;
+                        throw new FatalError($"Error, can't find {param_type.Name}.Parse(string)");
                     }
                 }
 
                 // it can't handle any complex parameter types (yet? ever?)
                 else
                 {
-                    Print.Error($"Error, don't know how to parse a {t.Name}");
-                    return false;
+                    throw new FatalError($"Error, don't know how to parse a {param_type.Name}");
                 }
             }
-            try
+            if(run_it)
             {
-                method.Invoke(this, result);
-            }
-            catch(TargetInvocationException e) when(e.InnerException.GetType() == typeof(Args.Error))
-            {
-                if(!string.IsNullOrEmpty(e.InnerException.Message))
+                try
                 {
-                    Print.Error($"Error processing argument for {method.Name.ToLower()}: {e.InnerException.Message}");
+                    method.Invoke(this, result);
                 }
-                return false;
+                catch(TargetInvocationException e)
+                {
+                    ExceptionDispatchInfo.Capture(e.InnerException).Throw();
+                }
             }
-            catch(TargetInvocationException e)
-            {
-                throw e.InnerException;
-            }
-            return true;
         }
 
         //////////////////////////////////////////////////////////////////////
+        // find all the command methods (those with a [Help()] attribute
 
-        public bool execute(string[] args)
+        private IEnumerable<MethodInfo> CommandMethods
+        {
+            get
+            {
+                return GetType().GetMethods(binding_flags).Where(x => x.IsDefined(typeof(HelpAttribute)));
+            }
+        }
+
+        //////////////////////////////////////////////////////////////////////
+        // get the Default method (called when no args are supplied)
+
+        private MethodInfo DefaultMethod
+        {
+            get
+            {
+                return GetType().GetMethods(binding_flags).First(x => x.IsDefined(typeof(DefaultAttribute)));
+            }
+        }
+
+        //////////////////////////////////////////////////////////////////////
+        // scan args for a command to run or just check usage
+
+        private bool parse_args(string[] command_line, bool run_commands)
         {
             int functions_called = 0;
-            string s = string.Join(" ", args);
-            string[] p = s.Split(new char[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
+            string s = string.Join(" ", command_line);
+            char[] semicolon = new char[] { ';' };
+            char[] whitespace = new char[] { ' ', '\t' };
+            string[] p = s.Split(semicolon, StringSplitOptions.RemoveEmptyEntries);
             foreach(string a in p)
             {
-                string[] r = a.Split(new char[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
-                if(r.Length != 0)
+                string[] argv = a.Split(whitespace, StringSplitOptions.RemoveEmptyEntries);
+                if(argv.Length != 0)
                 {
-                    List<int> parameter_counts = new List<int>();
-                    bool found = false;
-                    string found_command = null;
-                    foreach(MethodInfo method in CommandMethods)
+                    List<int> param_counts = new List<int>();
+                    bool name_match = false;
+                    bool args_match = false;
+
+                    foreach(MethodInfo method in CommandMethods.Where(x => string.Compare(argv[0], x.Name, StringComparison.OrdinalIgnoreCase) == 0))
                     {
-                        if(string.Compare(r[0], method.Name, StringComparison.OrdinalIgnoreCase) == 0)
+                        name_match = true;
+                        ParameterInfo[] parameters = method.GetParameters();
+                        param_counts.Add(parameters.Length);
+                        if(parameters.Length == argv.Length - 1)
                         {
-                            found_command = method.Name.ToLower();
-                            ParameterInfo[] parameters = method.GetParameters();
-                            if(method.GetCustomAttribute<HelpAttribute>() != null)
-                            {
-                                parameter_counts.Add(parameters.Length);
-                                if(parameters.Length == r.Length - 1)
-                                {
-                                    found = true;
-                                    functions_called += 1;
-                                    if(run(method, r))
-                                    {
-                                        break;
-                                    }
-                                }
-                            }
+                            args_match = true;
+                            functions_called += 1;
+                            run(method, argv, run_it: run_commands);
                         }
                     }
-                    if(found_command == null)
+                    if(!name_match)
                     {
-                        Print.Warning($"Warning: unknown command {r[0]} ignored");
+                        throw new UsageError($"Unknown command {argv[0]}");
                     }
-                    else if(!found)
+                    if(!args_match)
                     {
-                        string param_counts = "0";
-                        if(parameter_counts.Count != 0)
-                        {
-                            param_counts = string.Join("or", parameter_counts.ToArray());
-                        }
-                        Print.Error($"Wrong number of arguments for {found_command}, expected {param_counts}");
+                        throw new UsageError($"Wrong number of arguments for {argv[0]}, expected {string.Join(" or ", param_counts)}");
                     }
                 }
             }
-            if(functions_called == 0)
+            if(functions_called == 0 && run_commands)
             {
                 MethodInfo m = DefaultMethod;
                 if(m != null)
@@ -278,47 +342,52 @@ namespace Args
                     {
                         m.Invoke(this, null);
                     }
-                    catch(TargetInvocationException e) when(e.InnerException.GetType().BaseType == typeof(System.ApplicationException))
+                    catch(TargetInvocationException e)
                     {
+                        ExceptionDispatchInfo.Capture(e.InnerException).Throw();
                     }
                 }
-
             }
             return true;
         }
 
         //////////////////////////////////////////////////////////////////////
+        // execute handlers according to command line arguments
 
-        IEnumerable<MethodInfo> CommandMethods
+        public bool execute(string[] args)
         {
-            get
+            try
             {
-                return GetType().GetMethods(binding_flags).Where(x => x.GetCustomAttribute<HelpAttribute>() != null);
+                parse_args(args, run_commands: false);
             }
-        }
-
-        //////////////////////////////////////////////////////////////////////
-
-        MethodInfo DefaultMethod
-        {
-            get
+            catch(UsageError e)
             {
-                return GetType().GetMethods(binding_flags).First(x => x.GetCustomAttribute<DefaultAttribute>() != null);
+                Print.Error($"{e.Message}");
+                return false;
             }
+            try
+            {
+                parse_args(args, run_commands: true);
+            }
+            catch(FatalError e)
+            {
+                Print.Error(e.Message);
+                Environment.ExitCode = e.return_code;
+            }
+            catch(SilentError)
+            {
+            }
+            return true;
         }
 
         //////////////////////////////////////////////////////////////////////
-
-        string get_help(MethodInfo method)
-        {
-            return method.GetCustomAttribute<HelpAttribute>()?.help;
-        }
-
-        //////////////////////////////////////////////////////////////////////
+        // show help for all commands
 
         public void show_help(string application_name, string header)
         {
+            string exe = Path.GetFileNameWithoutExtension(Process.GetCurrentProcess().MainModule.FileName).ToLower();
             Print.Line($"{application_name}\n", ConsoleColor.Green);
+            Print.Line($"Usage: {exe} command [params]; command [params]; etc\n");
             Print.Line($"{header}\n");
             Print.Line("Commands:\n");
 
@@ -328,12 +397,9 @@ namespace Args
 
             foreach(MethodInfo m in CommandMethods)
             {
-                if(m.GetCustomAttribute<HelpAttribute>() != null)
-                {
-                    name_len = Math.Max(m.Name.Length, name_len);
-                    help_len = Math.Max(get_help(m).Length, help_len);
-                    param_len = Math.Max(param_help(m).Length, param_len);
-                }
+                name_len = Math.Max(m.Name.Length, name_len);
+                help_len = Math.Max(get_help(m).Length, help_len);
+                param_len = Math.Max(param_help(m).Length, param_len);
             }
 
             foreach(MethodInfo m in CommandMethods)
@@ -341,7 +407,7 @@ namespace Args
                 Print.Text($"{m.Name.PadRight(name_len)}", ConsoleColor.Yellow);
                 Print.Line($" {param_help(m).PadRight(param_len)} {get_help(m).PadRight(help_len)}");
             }
-            Console.WriteLine();
+            Print.Line("");
         }
     }
 }

@@ -16,38 +16,11 @@ namespace KP184
 
         //////////////////////////////////////////////////////////////////////
 
-        [Default]
-        [Help("Show this help text")]
-        void help()
-        {
-            string help_string = "Separate commands with semicolon, EG:\n\n" +
-                                 "kp184 port com5; baud 115200; address 1; switch on";
-            show_help("KP184 Controller", help_string);
-            throw new Args.FatalError("");
-        }
-
-        //////////////////////////////////////////////////////////////////////
-
         [Help("Set the com port")]
         void port(string com_port)
         {
+            Log.Debug($"COM Port: {com_port}");
             device.port.PortName = com_port;
-        }
-
-        //////////////////////////////////////////////////////////////////////
-
-        [Help("Set verbose mode")]
-        void verbose()
-        {
-            Log.level = Log.Level.Verbose;
-        }
-
-        //////////////////////////////////////////////////////////////////////
-
-        [Help("Set the log level")]
-        void loglevel(Log.Level level)
-        {
-            Log.level = level;
         }
 
         //////////////////////////////////////////////////////////////////////
@@ -55,6 +28,7 @@ namespace KP184
         [Help("Set the baud rate")]
         void baud(int baud_rate)
         {
+            Log.Debug($"BAUD rate: {baud_rate}");
             device.port.BaudRate = baud_rate;
         }
 
@@ -67,6 +41,7 @@ namespace KP184
             {
                 throw new Args.Error($"Device address can't be 0");
             }
+            Log.Debug($"Device address: {device_address}");
             device.address = device_address;
         }
 
@@ -113,14 +88,16 @@ namespace KP184
                 step = -step;
                 Log.Info($"Changing step to {step} from {-step} so it works");
             }
-            Log.Info($"Stepping from {from} to {to} in steps of {step}mA at intervals of {interval_ms}ms");
             int current = from;
             var stop_watch = new System.Diagnostics.Stopwatch();
             var step_time = TimeSpan.FromMilliseconds(step);
             while((step < 0 && current >= to) || (step > 0 && current <= to))
             {
                 stop_watch.Restart();
-                device.set_current((uint)current);
+                if(!device.set_current((uint)current))
+                {
+                    throw new Args.FatalError($"Quitting");
+                }
                 current += step;
                 stop_watch.Stop();
                 int ms_remaining = (step_time - stop_watch.Elapsed).Milliseconds;
@@ -130,6 +107,32 @@ namespace KP184
                 }
             }
         }
+
+        //////////////////////////////////////////////////////////////////////
+
+        [Help("Set verbose mode")]
+        void verbose()
+        {
+            Log.level = Log.Level.Verbose;
+        }
+
+        //////////////////////////////////////////////////////////////////////
+
+        [Help("Set the log level")]
+        void loglevel(Log.Level level)
+        {
+            Log.level = level;
+            throw new Args.SilentError();
+        }
+
+        //////////////////////////////////////////////////////////////////////
+
+        [Default]
+        [Help("Show this help text")]
+        public void help()
+        {
+            show_help("KP184 Controller", "Control the KP184, specify port, baud, address before other commands");
+        }
     }
 
     //////////////////////////////////////////////////////////////////////
@@ -138,9 +141,16 @@ namespace KP184
     {
         static void Main(string[] args)
         {
+            Actions a = new Actions();
             try
             {
-                new Actions().execute(args);
+                if(!a.execute(args))
+                {
+                    a.help();
+                }
+            }
+            catch(Args.SilentError e)
+            {
             }
             catch(Args.FatalError e)
             {
