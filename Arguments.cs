@@ -247,14 +247,14 @@ namespace Args
                     }
                     else
                     {
-                        throw new FatalError($"Error, can't find {param_type.Name}.Parse(string)");
+                        throw new FatalError($"Error, can't find {param_type.Name}.Parse(string)", -1);
                     }
                 }
 
                 // it can't handle any complex parameter types (yet? ever?)
                 else
                 {
-                    throw new FatalError($"Error, don't know how to parse a {param_type.Name}");
+                    throw new FatalError($"Error, don't know how to parse a {param_type.Name}", -2);
                 }
             }
             if(run_it)

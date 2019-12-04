@@ -34,7 +34,7 @@ namespace KP184
             if(severity >= level)
             {
                 System.Diagnostics.Debug.WriteLine($"{tag}:{o}");
-                Console.WriteLine($"{tag}:{o}");
+                Console.WriteLine($"{tag,-20}:{o}");
             }
         }
 

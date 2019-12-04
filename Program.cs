@@ -1,6 +1,7 @@
 ﻿//////////////////////////////////////////////////////////////////////
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using Args;
 
@@ -19,7 +20,7 @@ namespace KP184
         [Help("Set the com port")]
         void port(string com_port)
         {
-            Log.Debug($"COM Port: {com_port}");
+            Log.Verbose($"COM Port: {com_port}");
             device.port.PortName = com_port;
         }
 
@@ -28,7 +29,7 @@ namespace KP184
         [Help("Set the baud rate")]
         void baud(int baud_rate)
         {
-            Log.Debug($"BAUD rate: {baud_rate}");
+            Log.Verbose($"BAUD rate: {baud_rate}");
             device.port.BaudRate = baud_rate;
         }
 
@@ -41,7 +42,7 @@ namespace KP184
             {
                 throw new Args.Error($"Device address can't be 0");
             }
-            Log.Debug($"Device address: {device_address}");
+            Log.Verbose($"Device address: {device_address}");
             device.address = device_address;
         }
 
@@ -50,6 +51,7 @@ namespace KP184
         [Help("Switch the load on or off")]
         void @switch(kp184.load_switch on_or_off)
         {
+            Log.Verbose($"Turning load switch {on_or_off}");
             device.set_load_switch(on_or_off);
         }
 
@@ -58,6 +60,7 @@ namespace KP184
         [Help("Switch the load on")]
         void on()
         {
+            Log.Verbose($"Turning load switch {kp184.load_switch.on}");
             device.set_load_switch(kp184.load_switch.on);
         }
 
@@ -66,6 +69,7 @@ namespace KP184
         [Help("Switch the load off")]
         void off()
         {
+            Log.Verbose($"Turning load switch {kp184.load_switch.off}");
             device.set_load_switch(kp184.load_switch.off);
         }
 
@@ -74,6 +78,7 @@ namespace KP184
         [Help("Set the load mode")]
         void mode(kp184.load_mode load_mode)
         {
+            Log.Verbose($"Setting load mode to {load_mode}");
             device.set_mode(load_mode);
         }
 
@@ -86,7 +91,7 @@ namespace KP184
             if(Math.Sign(to - from) != Math.Sign(step))
             {
                 step = -step;
-                Log.Info($"Changing step to {step} from {-step} so it works");
+                Log.Warning($"Changing step from {-step} to {step} so it works");
             }
             int current = from;
             var stop_watch = new System.Diagnostics.Stopwatch();
@@ -94,10 +99,7 @@ namespace KP184
             while((step < 0 && current >= to) || (step > 0 && current <= to))
             {
                 stop_watch.Restart();
-                if(!device.set_current((uint)current))
-                {
-                    throw new Args.FatalError($"Quitting");
-                }
+                device.set_current((uint)current);
                 current += step;
                 stop_watch.Stop();
                 int ms_remaining = (step_time - stop_watch.Elapsed).Milliseconds;
@@ -122,7 +124,6 @@ namespace KP184
         void loglevel(Log.Level level)
         {
             Log.level = level;
-            throw new Args.SilentError();
         }
 
         //////////////////////////////////////////////////////////////////////
@@ -132,6 +133,7 @@ namespace KP184
         public void help()
         {
             show_help("KP184 Controller", "Control the KP184, specify port, baud, address before other commands");
+            throw new Args.SilentError();
         }
     }
 
@@ -154,7 +156,11 @@ namespace KP184
             }
             catch(Args.FatalError e)
             {
-                Args.Print.Error($"{e.Message}");
+                Log.Error($"{e.Message}");
+            }
+            catch(Exception e)
+            {
+                Log.Error($"{e.Message}");
             }
         }
     }

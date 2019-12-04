@@ -21,7 +21,7 @@ namespace KP184
 
         //////////////////////////////////////////////////////////////////////
 
-        public bool open()
+        public void open()
         {
             if(!port.IsOpen)
             {
@@ -36,27 +36,25 @@ namespace KP184
                     Log.Error($"Baud rate not set");
                     open_it = false;
                 }
-                if(!open_it)
+                if(open_it)
                 {
-                    return false;
-                }
-                port.DataBits = 8;
-                port.Parity = Parity.None;
-                port.StopBits = StopBits.One;
-                port.ReadTimeout = 1000;
-                port.WriteTimeout = 1000;
-                try
-                {
-                    Log.Verbose($"Opening {port.PortName} at {port.BaudRate}");
-                    port.Open();
-                    return true;
-                }
-                catch(System.IO.IOException e)
-                {
-                    Log.Error($"Error opening {port.PortName} : {e.GetType()} - {e.Message}");
+                    port.DataBits = 8;
+                    port.Parity = Parity.None;
+                    port.StopBits = StopBits.One;
+                    port.ReadTimeout = 1000;
+                    port.WriteTimeout = 1000;
+                    try
+                    {
+                        Log.Verbose($"Opening {port.PortName} at {port.BaudRate}");
+                        port.Open();
+                    }
+                    catch(System.IO.IOException e)
+                    {
+                        Log.Error($"Error opening {port.PortName}");
+                        throw;
+                    }
                 }
             }
-            return false;
         }
 
         //////////////////////////////////////////////////////////////////////
@@ -81,58 +79,52 @@ namespace KP184
 
         //////////////////////////////////////////////////////////////////////
 
-        public bool write(byte[] message, int len)
+        public void write(byte[] message, int len)
         {
-            if(!open())
-            {
-                return false;
-            }
+            open();
             try
             {
                 port.Write(message, 0, len);
-                return true;
             }
             catch(System.IO.IOException e)
             {
-                Log.Error($"Error writing to {port.PortName} : {e.GetType()} - {e.Message}");
+                Log.Error($"Error writing to {port.PortName}");
+                throw;
             }
             catch(InvalidOperationException e)
             {
-                Log.Error($"Error writing to {port.PortName} : {e.GetType()} - {e.Message}");
+                Log.Error($"Error writing to {port.PortName}");
+                throw;
             }
             catch(TimeoutException e)
             {
-                Log.Error($"Error writing to {port.PortName} : {e.GetType()} - {e.Message}");
+                Log.Error($"Timeout reading from {port.PortName}");
             }
-            return false;
         }
 
         //////////////////////////////////////////////////////////////////////
 
-        public bool read(byte[] buffer, int len)
+        public void read(byte[] buffer, int len)
         {
-            if(!open())
-            {
-                return false;
-            }
+            open();
             try
             {
                 port.Read(buffer, 0, len);
-                return true;
             }
             catch(System.IO.IOException e)
             {
-                Log.Error($"Error reading from {port.PortName} : {e.GetType()} - {e.Message}");
+                Log.Error($"Error reading from {port.PortName}");
+                throw;
             }
             catch(InvalidOperationException e)
             {
-                Log.Error($"Error reading from {port.PortName} : {e.GetType()} - {e.Message}");
+                Log.Error($"Error reading from {port.PortName}");
+                throw;
             }
             catch(TimeoutException e)
             {
-                Log.Error($"Error reading from {port.PortName} : {e.GetType()} - {e.Message}");
+                Log.Error($"Timeout reading from {port.PortName}");
             }
-            return false;
         }
     }
 }
