@@ -329,7 +329,7 @@ namespace Args
                     }
                     if(!args_match)
                     {
-                        throw new UsageError($"Wrong number of arguments for {argv[0]}, expected {string.Join(" or ", param_counts)}");
+                        throw new UsageError($"Wrong number of arguments for command '{argv[0]}' - expected {string.Join(" or ", param_counts)}, got {argv.Length - 1}");
                     }
                 }
             }

@@ -112,7 +112,7 @@ namespace KP184
         // write multiple registers to modbus
         // this is untested and probably doesn't work, there's no example in the manual
 
-        public void write_multiple(ushort start_register, ushort num_registers, uint[] values)
+        public void write_multiple(register start_register, ushort num_registers, uint[] values)
         {
             byte[] message = new byte[9 + 4 * num_registers];
             message[6] = (byte)(num_registers * 4);
@@ -125,7 +125,7 @@ namespace KP184
                 message[i++] = (byte)(values[i] >> 8);
                 message[i++] = (byte)(values[i] >> 0);
             }
-            send_message(command.write_multiple, start_register, num_registers, ref message);
+            send_message(command.write_multiple, (ushort)start_register, num_registers, ref message);
             delay();
             get_response(8);
         }
@@ -133,7 +133,7 @@ namespace KP184
         //////////////////////////////////////////////////////////////////////
         // write a single modbus register
 
-        public void write_register(ushort register, uint value)
+        public void write_register(register register, uint value)
         {
             byte[] message = new byte[11 + 2];
             message[6] = sizeof(uint); //4
@@ -141,7 +141,7 @@ namespace KP184
             message[8] = (byte)(value >> 16);
             message[9] = (byte)(value >> 8);
             message[10] = (byte)(value >> 0);
-            send_message(command.write_single, register, 1, ref message);
+            send_message(command.write_single, (ushort)register, 1, ref message);
             get_response(9);
         }
 
@@ -175,19 +175,19 @@ namespace KP184
         public void set_current(uint milliamps)
         {
             Log.Verbose($"Set current to {milliamps}mA");
-            write_register((ushort)register.current, milliamps);
+            write_register(register.current, milliamps);
         }
 
         public void set_mode(load_mode mode)
         {
             Log.Verbose($"Set mode to {mode}");
-            write_register((ushort)register.load_mode, (uint)mode);
+            write_register(register.load_mode, (uint)mode);
         }
 
         public void set_load_switch(load_switch on_or_off)
         {
             Log.Verbose($"Set switch {on_or_off}");
-            write_register((ushort)register.load_switch, (uint)on_or_off);
+            write_register(register.load_switch, (uint)on_or_off);
         }
     }
 }

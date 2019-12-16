@@ -45,7 +45,7 @@ namespace KP184
                     port.WriteTimeout = 1000;
                     try
                     {
-                        Log.Verbose($"Opening {port.PortName} at {port.BaudRate}");
+                        Log.Verbose($"Opening serial port '{port.PortName}' at {port.BaudRate} baud");
                         port.Open();
                     }
                     catch(System.IO.IOException e)
