@@ -33,8 +33,10 @@ namespace KP184
         {
             if(severity >= level)
             {
-                System.Diagnostics.Debug.WriteLine($"{tag}:{o}");
-                Console.WriteLine($"{tag,-20}:{o}");
+                string now = DateTime.Now.ToString("HH:mm:ss.fff");
+                string text = $"{severity,-8} {now} {tag,-20}:{o}";
+                System.Diagnostics.Debug.WriteLine(text);
+                Console.WriteLine(text);
             }
         }
 
