@@ -85,6 +85,15 @@ namespace KP184
 
         //////////////////////////////////////////////////////////////////////
 
+        [Help("Enable (true) or disable (false) the checksum check")]
+        void checksum(bool enable)
+        {
+            Log.Info($"Checksum checking: {enable}");
+            device.checksum_check = enable;
+        }
+
+        //////////////////////////////////////////////////////////////////////
+
         [Help("Do a ramp")]
         void ramp(int from, int to, int step, int interval_ms)
         {
@@ -96,7 +105,7 @@ namespace KP184
             }
             int current = from;
             var stop_watch = new System.Diagnostics.Stopwatch();
-            var step_time = TimeSpan.FromMilliseconds(step);
+            var step_time = TimeSpan.FromMilliseconds(interval_ms);
             while((step < 0 && current >= to) || (step > 0 && current <= to))
             {
                 stop_watch.Restart();
