@@ -20,6 +20,8 @@ namespace KP184
         public uint voltage;
         public uint current;
 
+        public bool checksum_check = true;
+
         //////////////////////////////////////////////////////////////////////
 
         public enum load_mode
@@ -104,7 +106,10 @@ namespace KP184
         {
             byte[] response = new byte[length];
             read(response, length);
-            checksum.verify(response, length);
+            if(checksum_check)
+            {
+                checksum.verify(response, length);
+            }
             return response;
         }
 
