@@ -183,6 +183,18 @@ namespace KP184
             write_register(register.current, milliamps);
         }
 
+        public void set_power(uint watt)
+        {
+            Log.Verbose($"Set watt to {watt}dW");
+            write_register(register.watts, watt);
+        }
+
+        public void set_resistance(uint ohms)
+        {
+            Log.Verbose($"Set resistance to {ohms}Ohm");
+            write_register(register.resistance, ohms);
+        }
+        
         public void set_mode(load_mode mode)
         {
             Log.Verbose($"Set mode to {mode}");
@@ -193,6 +205,68 @@ namespace KP184
         {
             Log.Verbose($"Set switch {on_or_off}");
             write_register(register.load_switch, (uint)on_or_off);
+        }
+
+        public int get_OnOff()
+        {
+            Log.Verbose($"Get KP184 on or off");
+            byte[] message = new byte[8];
+            // wacky special read at 0x300 means get them all and the format of the return message is... special
+            send_message(command.read_registers, 0x300, 0, ref message);
+            delay();
+            byte[] response = get_response(23);
+            if (response != null)
+            {
+                switch_status = (load_switch)(response[3] & 1);
+            }
+            return (int)switch_status;
+        }
+
+        public int get_Mode()
+        {
+            Log.Verbose($"Get KP184 on or off");
+            byte[] message = new byte[8];
+            // wacky special read at 0x300 means get them all and the format of the return message is... special
+            send_message(command.read_registers, 0x300, 0, ref message);
+            delay();
+            byte[] response = get_response(23);
+            if (response != null)
+            {
+                switch_mode = (load_mode)((response[3] >> 1) & 7);  // TODO (chs): then look this up, the values in the status are wacky
+            }
+            return (int)switch_mode;
+        }
+
+        public int get_Voltage()
+        {
+            Log.Verbose($"Get KP184 on or off");
+            byte[] message = new byte[8];
+            // wacky special read at 0x300 means get them all and the format of the return message is... special
+            send_message(command.read_registers, 0x300, 0, ref message);
+            delay();
+            byte[] response = get_response(23);
+            if (response != null)
+            {
+                voltage = ((uint)response[5] << 16) | ((uint)response[6] << 8) | response[7];
+
+            }
+            return (int)voltage;
+        }
+
+        public int get_Current()
+        {
+            Log.Verbose($"Get KP184 on or off");
+            byte[] message = new byte[8];
+            // wacky special read at 0x300 means get them all and the format of the return message is... special
+            send_message(command.read_registers, 0x300, 0, ref message);
+            delay();
+            byte[] response = get_response(23);
+            if (response != null)
+            {
+                current = ((uint)response[8] << 16) | ((uint)response[9] << 8) | response[10];
+
+            }
+            return (int)current;
         }
     }
 }
