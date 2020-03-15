@@ -75,6 +75,15 @@ namespace KP184
 
         //////////////////////////////////////////////////////////////////////
 
+        [Help("Do nothing for N milliseconds")]
+        void delay(int ms)
+        {
+            Log.Verbose($"Sleeping for {ms}ms");
+            Thread.Sleep(ms);
+        }
+
+        //////////////////////////////////////////////////////////////////////
+
         [Help("Set the load mode")]
         void mode(kp184.load_mode load_mode)
         {
@@ -111,10 +120,10 @@ namespace KP184
                 device.set_current((uint)current);
                 current += step;
                 stop_watch.Stop();
-                int ms_remaining = (step_time - stop_watch.Elapsed).Milliseconds;
+                double ms_remaining = (step_time - stop_watch.Elapsed).TotalMilliseconds;
                 if(ms_remaining > 0)
                 {
-                    Thread.Sleep(ms_remaining);
+                    Thread.Sleep((int)ms_remaining);
                 }
             }
         }
