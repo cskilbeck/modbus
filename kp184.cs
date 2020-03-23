@@ -26,11 +26,21 @@ namespace KP184
 
         public enum load_mode
         {
-            cv = 0,
-            cc = 1,
-            cr = 2,
-            cw = 3
+            CV = 0,
+            CC = 1,
+            CR = 2,
+            CW = 3
         };
+
+        public static string load_mode_as_string(int mode)
+        {
+            return Enum.GetName(typeof(load_mode), mode);
+        }
+
+        public static string load_mode_as_string(load_mode mode)
+        {
+            return Enum.GetName(typeof(load_mode), mode);
+        }
 
         //////////////////////////////////////////////////////////////////////
 
@@ -61,12 +71,18 @@ namespace KP184
             resistance = 0x011a,
             watts = 0x011e,
             measured_volts = 0x0122,
-            measured_amps = 0x0126
+            measured_amps = 0x0126,
+            dummy = 0x0122
         };
 
         //////////////////////////////////////////////////////////////////////
 
-        private const int reply_delay = 100;
+        const int offset_voltage = 5;
+        const int offset_current = 8;
+
+        //////////////////////////////////////////////////////////////////////
+
+        private const int reply_delay = 50;
 
         private static void delay()
         {
@@ -106,10 +122,7 @@ namespace KP184
         {
             byte[] response = new byte[length];
             read(response, length);
-            if(checksum_check)
-            {
-                checksum.verify(response, length);
-            }
+            checksum.verify(response, length, checksum_check);
             return response;
         }
 
@@ -147,7 +160,20 @@ namespace KP184
             message[9] = (byte)(value >> 8);
             message[10] = (byte)(value >> 0);
             send_message(command.write_single, (ushort)register, 1, ref message);
+            delay();
             get_response(9);
+        }
+
+        //////////////////////////////////////////////////////////////////////
+        // wacky special read at 0x300 means get them all and the format of the return message is... special
+
+        public byte[] get_status_bank()
+        {
+            byte[] message = new byte[8];
+            send_message(command.read_registers, 0x300, 0, ref message);
+            delay();
+            byte[] x = get_response(23);
+            return x;
         }
 
         //////////////////////////////////////////////////////////////////////
@@ -155,20 +181,16 @@ namespace KP184
 
         public void get_status()
         {
-            byte[] message = new byte[8];
-            // wacky special read at 0x300 means get them all and the format of the return message is... special
-            send_message(command.read_registers, 0x300, 0, ref message);
-            delay();
-            byte[] response = get_response(23);
+            byte[] response = get_status_bank();
             if(response != null)
             {
                 switch_status = (load_switch)(response[3] & 1);
-                switch_mode = (load_mode)((response[3] >> 1) & 7);  // TODO (chs): then look this up, the values in the status are wacky
-                voltage = ((uint)response[5] << 16) | ((uint)response[6] << 8) | response[7];
-                current = ((uint)response[8] << 16) | ((uint)response[9] << 8) | response[10];
+                switch_mode = (load_mode)((response[3] >> 1) & 3);  // TODO (chs): then look this up, the values in the status are wacky
+                voltage = ((uint)response[offset_voltage] << 16) | ((uint)response[offset_voltage + 1] << 8) | response[offset_voltage + 2];
+                current = ((uint)response[offset_current] << 16) | ((uint)response[offset_current + 1] << 8) | response[offset_current + 2];
                 Log.Info("Status:");
                 Log.Info($"   Switch is {switch_status}");
-                Log.Info($"   Mode is {switch_mode}");
+                Log.Info($"   Mode is {load_mode_as_string(switch_mode)}");
                 Log.Info($"   Current is {current}");
                 Log.Info($"   Voltage is {voltage}");
             }
@@ -207,14 +229,10 @@ namespace KP184
             write_register(register.load_switch, (uint)on_or_off);
         }
 
-        public int get_OnOff()
+        public int get_load_switch()
         {
-            Log.Verbose($"Get KP184 on or off");
-            byte[] message = new byte[8];
-            // wacky special read at 0x300 means get them all and the format of the return message is... special
-            send_message(command.read_registers, 0x300, 0, ref message);
-            delay();
-            byte[] response = get_response(23);
+            Log.Verbose($"Get load switch");
+            byte[] response = get_status_bank();
             if (response != null)
             {
                 switch_status = (load_switch)(response[3] & 1);
@@ -222,49 +240,35 @@ namespace KP184
             return (int)switch_status;
         }
 
-        public int get_Mode()
+        public int get_mode()
         {
-            Log.Verbose($"Get KP184 on or off");
-            byte[] message = new byte[8];
-            // wacky special read at 0x300 means get them all and the format of the return message is... special
-            send_message(command.read_registers, 0x300, 0, ref message);
-            delay();
-            byte[] response = get_response(23);
+            Log.Verbose($"Get mode");
+            byte[] response = get_status_bank();
             if (response != null)
             {
-                switch_mode = (load_mode)((response[3] >> 1) & 7);  // TODO (chs): then look this up, the values in the status are wacky
+                switch_mode = (load_mode)((response[3] >> 1) & 3);
             }
             return (int)switch_mode;
         }
 
-        public int get_Voltage()
+        public int get_voltage()
         {
-            Log.Verbose($"Get KP184 on or off");
-            byte[] message = new byte[8];
-            // wacky special read at 0x300 means get them all and the format of the return message is... special
-            send_message(command.read_registers, 0x300, 0, ref message);
-            delay();
-            byte[] response = get_response(23);
+            Log.Verbose($"Get voltage");
+            byte[] response = get_status_bank();
             if (response != null)
             {
-                voltage = ((uint)response[5] << 16) | ((uint)response[6] << 8) | response[7];
-
+                voltage = ((uint)response[offset_voltage] << 16) | ((uint)response[offset_voltage + 1] << 8) | response[offset_voltage + 2];
             }
             return (int)voltage;
         }
 
-        public int get_Current()
+        public int get_current()
         {
-            Log.Verbose($"Get KP184 on or off");
-            byte[] message = new byte[8];
-            // wacky special read at 0x300 means get them all and the format of the return message is... special
-            send_message(command.read_registers, 0x300, 0, ref message);
-            delay();
-            byte[] response = get_response(23);
+            Log.Verbose($"Get current");
+            byte[] response = get_status_bank();
             if (response != null)
             {
-                current = ((uint)response[8] << 16) | ((uint)response[9] << 8) | response[10];
-
+                current = ((uint)response[offset_current] << 16) | ((uint)response[offset_current + 1] << 8) | response[offset_current + 2];
             }
             return (int)current;
         }

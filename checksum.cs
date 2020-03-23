@@ -86,14 +86,26 @@ namespace KP184
         //////////////////////////////////////////////////////////////////////
         // compare existing crc with computed crc
 
-        public static void verify(byte[] message, int length)
+        public static void verify(byte[] message, int length, bool checksum_check)
         {
             ushort crc_got = checksum.extract(message, length);
             ushort crc_computed = checksum.compute(message, length - 2);
             if(crc_computed != crc_got)
             {
-                throw new ChecksumException($"Checksum error, got 0x{crc_got:X4}. expected 0x{crc_computed:X4}");
+                string err = $"Checksum error, got 0x{crc_got:X4}. expected 0x{crc_computed:X4}";
+                if(checksum_check)
+                {
+                    throw new ChecksumException(err);
+                }
+                else
+                {
+                    Log.Error(err);
+                }
                 dump_array("Message: ", message, length);
+            }
+            else
+            {
+                Log.Debug($"Checksum OK, got 0x{crc_got:X4}");
             }
         }
     }

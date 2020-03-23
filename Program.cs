@@ -9,7 +9,6 @@ using Args;
 
 namespace KP184
 {
-  
     class Actions: Args.Handler
     {
         //////////////////////////////////////////////////////////////////////
@@ -114,11 +113,14 @@ namespace KP184
             }
             int current = from;
             var stop_watch = new System.Diagnostics.Stopwatch();
+            var total_time = new System.Diagnostics.Stopwatch();
             var step_time = TimeSpan.FromMilliseconds(interval_ms);
+            total_time.Start();
             while((step < 0 && current >= to) || (step > 0 && current <= to))
             {
                 stop_watch.Restart();
                 device.set_current((uint)current);
+                Log.Info($"{current,9}mA, elapsed: {total_time.Elapsed.ToString()}");
                 current += step;
                 stop_watch.Stop();
                 double ms_remaining = (step_time - stop_watch.Elapsed).TotalMilliseconds;
@@ -158,32 +160,8 @@ namespace KP184
 
         //////////////////////////////////////////////////////////////////////
 
-        [Help("Do a ramp")]
-        void ramp2(int from, int to, int step, int interval_ms)
-        {
-            Log.Info($"Ramp2: from {from} to {to} in steps of {step} at intervals of {interval_ms}");
-            if (to > from)
-            {
-                for (int i = from; i <= to; i += step)
-                {
-                    device.set_current((uint)i);
-                    System.Threading.Thread.Sleep(interval_ms);
-                }
-            }
-            else
-            {
-                for (int i = from; i >= to; i -= step)
-                {
-                    device.set_current((uint)i);
-                    System.Threading.Thread.Sleep(interval_ms);
-                }
-            }
-        }
-
-        //////////////////////////////////////////////////////////////////////
-
         [Help("Returns the status of KP184")]
-        void getStatus()
+        void get_status()
         {
             Log.Verbose($"Calling get_status from KP184");
             device.get_status();
@@ -192,41 +170,41 @@ namespace KP184
         //////////////////////////////////////////////////////////////////////
 
         [Help("Returns if device is On (=1) or Off (=0)")]
-        void getOnOff()
+        void get_switch()
         {
             Log.Verbose($"Calling get_OnOff from KP184");
-            int OnOff = device.get_OnOff();
+            int OnOff = device.get_load_switch();
             Console.WriteLine(OnOff);
         }
 
         //////////////////////////////////////////////////////////////////////
 
         [Help("Returns the mode (cv=0, cc=1, cr=2, cw=3) of the device")]
-        void getMode()
+        void get_mode()
         {
             Log.Verbose($"Calling get_Mode from KP184");
-            int Mode = device.get_Mode();
-            Console.WriteLine(Mode);
+            int Mode = device.get_mode();
+            Log.Info($"Mode is {Mode} ({kp184.load_mode_as_string(Mode)})");
         }
 
         //////////////////////////////////////////////////////////////////////
 
         [Help("Reads the current in mA")]
-        void getCurrent()
+        void get_current()
         {
             Log.Verbose($"Calling get_Mode from KP184");
-            int current = device.get_Current();
-            Console.WriteLine(current);
+            int current = device.get_current();
+            Log.Info($"Current is {current}mA");
         }
 
         //////////////////////////////////////////////////////////////////////
 
         [Help("Reads the voltage in mV")]
-        void getVoltage()
+        void get_voltage()
         {
             Log.Verbose($"Calling get_Mode from KP184");
-            int volts = device.get_Voltage();
-            Console.WriteLine(volts);
+            int volts = device.get_voltage();
+            Log.Info($"Voltage is {volts}mV");
         }
 
         //////////////////////////////////////////////////////////////////////
@@ -281,6 +259,9 @@ namespace KP184
             {
                 Log.Error($"{e.Message}");
             }
+#if DEBUG
+            Console.ReadLine();
+#endif
         }
     }
 }
