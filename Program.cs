@@ -120,7 +120,7 @@ namespace KP184
             {
                 stop_watch.Restart();
                 device.set_current((uint)current);
-                Log.Info($"{current,9}mA, elapsed: {total_time.Elapsed.ToString()}");
+                Log.Info($"{current,9}mA, elapsed: {total_time.Elapsed}");
                 current += step;
                 stop_watch.Stop();
                 double ms_remaining = (step_time - stop_watch.Elapsed).TotalMilliseconds;
