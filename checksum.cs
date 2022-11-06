@@ -55,6 +55,8 @@ namespace KP184
                     crc = (ushort)((crc >> 1) ^ xor);
                 }
             }
+            // Flip upper and lower CRC bytes for Kunkin FW Date > 2020
+            crc = (ushort)((crc & 0xFFU) << 8 | (crc & 0xFF00U) >> 8);
             return crc;
         }
 
