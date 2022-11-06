@@ -2,7 +2,7 @@
 Remote control command line client for Kunkin KP184 electronic load.
 
 Example execution:
-kp184 port com11; address 1; get_status
+kp184 port com11; baud 115200; address 1; get_status
 
 ```
 KP184 Controller
