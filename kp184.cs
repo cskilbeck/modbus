@@ -11,6 +11,12 @@ using System.Threading;
 
 namespace KP184
 {
+    //static class for global variable
+    static class Globals
+    {
+        public static string crc_order = "new";
+    }    
+        
     public class kp184: serial_port
     {
         public byte address;
