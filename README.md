@@ -13,7 +13,7 @@ Control the KP184, specify port, baud, address before other commands
 
 Commands:
 
-crc			    [new|old]											                        Set the CRC byte order 'new' = swapped bytes 'old' = no swapped bytes
+crc         [new|old]                                             Set the CRC byte order 'new' = swapped bytes 'old' = no swapped bytes
 port        com_port                                              Set the com port
 baud        baud_rate(int32)                                      Set the baud rate
 address     device_address(byte)                                  Set the device address
