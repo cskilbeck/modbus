@@ -2,7 +2,7 @@
 Remote control command line client for Kunkin KP184 electronic load.
 
 Example execution:
-kp184 port com11; address 1; get_status
+kp184 crc new; port com11; baud 115200; address 1; get_status
 
 ```
 KP184 Controller
@@ -13,6 +13,7 @@ Control the KP184, specify port, baud, address before other commands
 
 Commands:
 
+crc         [new|old]                                             Set the CRC byte order 'new' = swapped bytes 'old' = no swapped bytes
 port        com_port                                              Set the com port
 baud        baud_rate(int32)                                      Set the baud rate
 address     device_address(byte)                                  Set the device address

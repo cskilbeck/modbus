@@ -17,6 +17,13 @@ namespace KP184
 
         //////////////////////////////////////////////////////////////////////
 
+        [Help("Set the CRC byte order 'new' = swapped bytes 'old' = no swapped bytes")]
+        void crc(string order)
+        {
+            Log.Verbose($"CRC Order:: {order}");
+            Globals.crc_order = order;
+        }
+
         [Help("Set the com port")]
         void port(string com_port)
         {
